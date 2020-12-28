@@ -1,6 +1,7 @@
-{% if platform == "macOS" %}import Cocoa
 import {{ name }}Kit
 import {{ name }}UI
+#if os(macOS)
+import Cocoa
 
 @NSApplicationMain
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -15,9 +16,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Insert code here to tear down your application
     }
 
-}{% else %}import UIKit
-import {{ name }}Kit
-import {{ name }}UI
+}
+#else
+import UIKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -40,4 +41,5 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
 
-}{% endif %}
+}
+#endif
