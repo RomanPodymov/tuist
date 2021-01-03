@@ -241,8 +241,8 @@ DEPENDENCIES
   mocha (~> 1.12)
   rake (~> 13.0)
   rubocop (~> 1.7.0)
-  rubocop-minitest
-  rubocop-rake
+  rubocop-minitest (~> 0.10.2)
+  rubocop-rake (~> 0.5.1)
   ruby-macho (~> 1.4)
   rubyzip (~> 2.3.0)
   simctl (~> 1.6)

@@ -18,10 +18,6 @@ require 'json'
 require 'zip'
 require 'macho'
 
-Cucumber::Rake::Task.new(:features) do |t|
-  t.cucumber_opts = "--format pretty"
-end
-
 desc("Runs the Fourier tests")
 Rake::TestTask.new do |t|
   t.name = "test_fourier"
@@ -125,24 +121,6 @@ desc("Publishes the installation scripts")
 task :release_scripts do
   decrypt_secrets
   release_scripts
-end
-
-desc("Packages tuist, tags it with the commit sha and uploads it to gcs")
-task :package_commit do
-  decrypt_secrets
-  package
-
-  bucket = storage.bucket("tuist-builds")
-
-  sha = %x(git rev-parse HEAD).strip.chomp
-  print_section("Uploading tuist-#{sha}")
-  file = bucket.create_file(
-    "build/tuist.zip",
-    "#{sha}.zip"
-  )
-
-  file.acl.public!
-  print_section("Uploaded 🚀")
 end
 
 desc("Encrypt secret keys")
