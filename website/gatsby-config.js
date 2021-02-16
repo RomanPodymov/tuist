@@ -7,7 +7,7 @@ module.exports = {
     title: title,
     description: `Tuist is a tool that helps developers manage large Xcode projects by leveraging project generation. Moreover, it provides some tools to automate most common tasks, allowing developers to focus on building apps.`,
     siteUrl: siteUrl,
-    discourseUrl: 'https://community.tuist.io',
+    discourseUrl: 'https://github.com/tuist/tuist/discussions',
     githubUrl: 'https://github.com/tuist',
     releasesUrl: 'https://github.com/tuist/tuist/releases',
     documentationUrl: 'https://docs.tuist.io/',
@@ -15,7 +15,7 @@ module.exports = {
     twitterUrl: 'http://twitter.com/tuistio',
     editUrl: 'https://github.com/tuist/tuist/edit/master/website',
     contributeUrl: 'https://docs.tuist.io/contribution-1-getting-started',
-    firstDocumentationPagePath: '/docs/usage/getting-started/',
+    firstDocumentationPagePath: '/docs/usage/get-started/',
     documentationCategories: [
       { folderName: 'usage', name: 'Usage' },
       { folderName: 'contribution', name: 'Contributors' },

@@ -3,6 +3,8 @@ import TSCBasic
 import TuistCacheTesting
 import TuistCore
 import TuistCoreTesting
+import TuistGraph
+import TuistGraphTesting
 import TuistSupport
 import XCTest
 @testable import TuistCache
@@ -10,12 +12,12 @@ import XCTest
 
 final class InfoPlistContentHasherTests: TuistUnitTestCase {
     private var subject: InfoPlistContentHasher!
-    private var mockContentHasher: MockContentHashing!
+    private var mockContentHasher: MockContentHasher!
     private let filePath1 = AbsolutePath("/file1")
 
     override func setUp() {
         super.setUp()
-        mockContentHasher = MockContentHashing()
+        mockContentHasher = MockContentHasher()
         subject = InfoPlistContentHasher(contentHasher: mockContentHasher)
     }
 
@@ -40,15 +42,17 @@ final class InfoPlistContentHasherTests: TuistUnitTestCase {
 
     func test_hash_whenPlistIsGeneratedFile_tellsContentHasherToHashFileContent() throws {
         // Given
-        let infoPlist = InfoPlist.generatedFile(path: filePath1)
-        mockContentHasher.stubHashForPath[filePath1] = "stubHash"
+        let infoPlist = InfoPlist.generatedFile(
+            path: filePath1,
+            data: try XCTUnwrap(Data(base64Encoded: "stubHash"))
+        )
 
         // When
         let hash = try subject.hash(plist: infoPlist)
 
         // Then
-        XCTAssertEqual(mockContentHasher.hashPathCallCount, 1)
-        XCTAssertEqual(hash, "stubHash")
+        XCTAssertEqual(mockContentHasher.hashDataCallCount, 1)
+        XCTAssertEqual(hash, "stubHash-hash")
     }
 
     func test_hash_whenPlistIsDictionary_allDictionaryValuesAreConsideredForHash() throws {
@@ -66,7 +70,7 @@ final class InfoPlistContentHasherTests: TuistUnitTestCase {
 
         // Then
         XCTAssertEqual(mockContentHasher.hashStringCallCount, 1)
-        XCTAssertEqual(hash, "1=integer(23);2=string(\"foo\");3=boolean(true);4=boolean(false);5=array([TuistCore.InfoPlist.Value.string(\"5a\"), TuistCore.InfoPlist.Value.string(\"5b\")]);6=dictionary([\"6a\": TuistCore.InfoPlist.Value.string(\"6value\")]);-hash")
+        XCTAssertEqual(hash, "1=integer(23);2=string(\"foo\");3=boolean(true);4=boolean(false);5=array([TuistGraph.InfoPlist.Value.string(\"5a\"), TuistGraph.InfoPlist.Value.string(\"5b\")]);6=dictionary([\"6a\": TuistGraph.InfoPlist.Value.string(\"6value\")]);-hash")
     }
 
     func test_hash_whenPlistIsExtendingDefault_allDictionaryValuesAreConsideredForHash() throws {
@@ -85,6 +89,6 @@ final class InfoPlistContentHasherTests: TuistUnitTestCase {
 
         // Then
         XCTAssertEqual(mockContentHasher.hashStringCallCount, 1)
-        XCTAssertEqual(hash, "1=integer(23);2=string(\"foo\");3=boolean(true);4=boolean(false);5=array([TuistCore.InfoPlist.Value.string(\"5a\"), TuistCore.InfoPlist.Value.string(\"5b\")]);6=dictionary([\"6a\": TuistCore.InfoPlist.Value.string(\"6value\")]);-hash")
+        XCTAssertEqual(hash, "1=integer(23);2=string(\"foo\");3=boolean(true);4=boolean(false);5=array([TuistGraph.InfoPlist.Value.string(\"5a\"), TuistGraph.InfoPlist.Value.string(\"5b\")]);6=dictionary([\"6a\": TuistGraph.InfoPlist.Value.string(\"6value\")]);-hash")
     }
 }

@@ -1,12 +1,12 @@
 import Foundation
 
-public struct Constants {
+public enum Constants {
     public static let versionFileName = ".tuist-version"
     public static let binFolderName = ".tuist-bin"
     public static let binName = "tuist"
     public static let gitRepositoryURL = "https://github.com/tuist/tuist.git"
     public static let communityURL = "https://community.tuist.io"
-    public static let version = "1.28.0"
+    public static let version = "1.34.0"
     public static let bundleName: String = "tuist.zip"
     public static let trueValues: [String] = ["1", "true", "TRUE", "yes", "YES"]
     public static let tuistDirectoryName: String = "Tuist"
@@ -22,40 +22,50 @@ public struct Constants {
     public static let joinSlackURL: String = "https://slack.tuist.io/"
     public static let tuistGeneratedFileName = ".tuist-generated"
 
-    public struct Vendor {
+    public enum Vendor {
         public static let swiftLint = "swiftlint"
         public static let swiftDoc = "swift-doc"
+        public static let xcbeautify = "xcbeautify"
     }
 
-    public struct DependenciesDirectory {
+    public enum DependenciesDirectory {
         public static let name = "Dependencies"
         public static let lockfilesDirectoryName = "Lockfiles"
         public static let cartfileResolvedName = "Cartfile.resolved"
         public static let carthageDirectoryName = "Carthage"
     }
 
-    public struct DerivedDirectory {
+    public enum DerivedDirectory {
         public static let name = "Derived"
         public static let infoPlists = "InfoPlists"
         public static let sources = "Sources"
         public static let signingKeychain = "signing.keychain"
     }
 
-    public struct AsyncQueue {
+    public enum AsyncQueue {
         public static let directoryName: String = "Queue"
     }
 
-    public struct EnvironmentVariables {
+    /// Pass these variables to make custom configuration of tuist
+    /// These variables are not supposed to be used by end users
+    /// But only eg. for acceptance tests and other cases needed internally
+    public enum EnvironmentVariables {
         public static let verbose = "TUIST_VERBOSE"
         public static let colouredOutput = "TUIST_COLOURED_OUTPUT"
         public static let versionsDirectory = "TUIST_VERSIONS_DIRECTORY"
         public static let cacheDirectory = "TUIST_CACHE_DIRECTORY"
+        public static let automationPath = "TUIST_AUTOMATION_PATH"
         public static let queueDirectory = "TUIST_QUEUE_DIRECTORY"
         public static let cloudToken = "TUIST_CLOUD_TOKEN"
         public static let cacheManifests = "TUIST_CACHE_MANIFESTS"
+        public static let statsOptOut = "TUIST_STATS_OPT_OUT"
     }
 
-    public struct GoogleCloud {
+    public enum GoogleCloud {
         public static let relasesBucketURL = "https://storage.googleapis.com/tuist-releases/"
+    }
+
+    public enum PluginDirectory {
+        public static let name = "Plugins"
     }
 }

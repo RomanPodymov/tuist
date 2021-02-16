@@ -3,6 +3,8 @@ import TSCBasic
 import struct TSCUtility.Version
 import TuistCore
 import TuistCoreTesting
+import TuistGraph
+import TuistGraphTesting
 import TuistSupport
 import XcodeProj
 import XCTest
@@ -214,6 +216,28 @@ final class ProjectDescriptorGeneratorTests: TuistUnitTestCase {
         let attributes = try XCTUnwrap(pbxProject.attributes as? [String: String])
         XCTAssertEqual(attributes, [
             "ORGANIZATIONNAME": "tuist",
+        ])
+    }
+
+    func test_generate_setsResourcesTagsName() throws {
+        // Given
+        let path = try temporaryPath()
+        let graph = Graph.test(entryPath: path)
+        let valueGraph = ValueGraph(graph: graph)
+        let graphTraverser = ValueGraphTraverser(graph: valueGraph)
+        let resources: [ResourceFileElement] = [.file(path: "/", tags: ["fileTag", "commonTag"]),
+                                                .folderReference(path: "/", tags: ["folderTag", "commonTag"])]
+        let project = Project.test(path: path,
+                                   targets: [.test(resources: resources)])
+
+        // When
+        let got = try subject.generate(project: project, graphTraverser: graphTraverser)
+
+        // Then
+        let pbxProject = try XCTUnwrap(try got.xcodeProj.pbxproj.rootProject())
+        let attributes = try XCTUnwrap(pbxProject.attributes as? [String: AnyHashable])
+        XCTAssertEqual(attributes, [
+            "KnownAssetTags": ["fileTag", "folderTag", "commonTag"].sorted(),
         ])
     }
 

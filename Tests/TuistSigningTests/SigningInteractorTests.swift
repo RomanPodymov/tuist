@@ -1,5 +1,6 @@
 import TSCBasic
 import TuistCore
+import TuistGraph
 import TuistSupport
 import XCTest
 @testable import TuistCoreTesting
@@ -52,7 +53,8 @@ final class SigningInteractorTests: TuistUnitTestCase {
 
     func test_install_creates_keychain() throws {
         // Given
-        let graph = Graph.test()
+        let graph = ValueGraph.test()
+        let graphTraverser = ValueGraphTraverser(graph: graph)
         let signingDirectory = try temporaryPath()
         signingFilesLocator.locateSigningDirectoryStub = { _ in
             signingDirectory
@@ -75,7 +77,7 @@ final class SigningInteractorTests: TuistUnitTestCase {
         }
 
         // When
-        try subject.install(graph: graph)
+        try subject.install(graphTraverser: graphTraverser)
 
         // Then
         XCTAssertEqual(masterKey, receivedMasterKey)
@@ -84,7 +86,8 @@ final class SigningInteractorTests: TuistUnitTestCase {
 
     func test_install_unlocks_keychain() throws {
         // Given
-        let graph = Graph.test()
+        let graph = ValueGraph.test()
+        let graphTraverser = ValueGraphTraverser(graph: graph)
         let signingDirectory = try temporaryPath()
         signingFilesLocator.locateSigningDirectoryStub = { _ in
             signingDirectory
@@ -107,7 +110,7 @@ final class SigningInteractorTests: TuistUnitTestCase {
         }
 
         // When
-        try subject.install(graph: graph)
+        try subject.install(graphTraverser: graphTraverser)
 
         // Then
         XCTAssertEqual(masterKey, receivedMasterKey)
@@ -116,7 +119,8 @@ final class SigningInteractorTests: TuistUnitTestCase {
 
     func test_install_locks_keychain() throws {
         // Given
-        let graph = Graph.test()
+        let graph = ValueGraph.test()
+        let graphTraverser = ValueGraphTraverser(graph: graph)
         signingFilesLocator.locateSigningDirectoryStub = { _ in
             try self.temporaryPath()
         }
@@ -138,7 +142,7 @@ final class SigningInteractorTests: TuistUnitTestCase {
         }
 
         // When
-        try subject.install(graph: graph)
+        try subject.install(graphTraverser: graphTraverser)
 
         // Then
         XCTAssertEqual(masterKey, receivedMasterKey)
@@ -148,7 +152,8 @@ final class SigningInteractorTests: TuistUnitTestCase {
     func test_install_decrypts_signing() throws {
         // Given
         let entryPath = try temporaryPath()
-        let graph = Graph.test(entryPath: entryPath)
+        let graph = ValueGraph.test(path: entryPath)
+        let graphTraverser = ValueGraphTraverser(graph: graph)
         signingFilesLocator.locateSigningDirectoryStub = { _ in
             try self.temporaryPath()
         }
@@ -166,7 +171,7 @@ final class SigningInteractorTests: TuistUnitTestCase {
         }
 
         // When
-        try subject.install(graph: graph)
+        try subject.install(graphTraverser: graphTraverser)
 
         // Then
         XCTAssertEqual(signingPath, entryPath)
@@ -176,7 +181,8 @@ final class SigningInteractorTests: TuistUnitTestCase {
     func test_install_encrypts_signing() throws {
         // Given
         let entryPath = try temporaryPath()
-        let graph = Graph.test(entryPath: entryPath)
+        let graph = ValueGraph.test(path: entryPath)
+        let graphTraverser = ValueGraphTraverser(graph: graph)
         signingFilesLocator.locateSigningDirectoryStub = { _ in
             try self.temporaryPath()
         }
@@ -194,7 +200,7 @@ final class SigningInteractorTests: TuistUnitTestCase {
         }
 
         // When
-        try subject.install(graph: graph)
+        try subject.install(graphTraverser: graphTraverser)
 
         // Then
         XCTAssertEqual(signingPath, entryPath)
@@ -207,14 +213,11 @@ final class SigningInteractorTests: TuistUnitTestCase {
         let targetName = "target"
         let configuration = "configuration"
         let expectedCertificate = Certificate.test(name: "certA")
-        let expectedProvisioningProfile = ProvisioningProfile.test(name: "profileA")
+        let expectedProvisioningProfile = ProvisioningProfile.test(name: "profileA", developerCertificateFingerprints: ["fingerprint"])
         signingMatcher.matchStub = { _ in
             (certificates: [
-                targetName: [
-                    configuration: expectedCertificate,
-                    // Used to ensure only certificates that have configuration are installed
-                    "other-config": Certificate.test(name: "certB"),
-                ],
+                "fingerprint": expectedCertificate,
+                "otherFingerprint": Certificate.test(name: "certB"),
             ],
             provisioningProfiles: [
                 targetName: [
@@ -236,7 +239,8 @@ final class SigningInteractorTests: TuistUnitTestCase {
             )
         )
         let project = Project.test(targets: [target])
-        let graph = Graph.test(projects: [project])
+        let graph = ValueGraph.test(projects: [project.path: project], targets: [project.path: [target.name: target]])
+        let graphTraverser = ValueGraphTraverser(graph: graph)
 
         var installedCertificates: [Certificate] = []
         signingInstaller.installCertificateStub = { certificate, _ in
@@ -248,7 +252,7 @@ final class SigningInteractorTests: TuistUnitTestCase {
         }
 
         // When
-        try subject.install(graph: graph)
+        try subject.install(graphTraverser: graphTraverser)
 
         // Then
         XCTAssertEqual([expectedCertificate], installedCertificates)

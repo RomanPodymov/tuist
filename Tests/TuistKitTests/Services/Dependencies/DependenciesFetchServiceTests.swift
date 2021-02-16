@@ -1,6 +1,8 @@
 import Foundation
 import TSCBasic
 import TuistCore
+import TuistGraph
+import TuistGraphTesting
 import XCTest
 
 @testable import TuistCoreTesting
@@ -55,6 +57,5 @@ final class DependenciesFetchServiceTests: TuistUnitTestCase {
 
         XCTAssertTrue(dependenciesModelLoader.invokedLoadDependencies)
         XCTAssertEqual(dependenciesModelLoader.invokedLoadDependenciesCount, 1)
-        XCTAssertEqual(dependenciesModelLoader.invokedLoadDependenciesParameters, stubbedPath)
     }
 }

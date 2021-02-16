@@ -2,8 +2,10 @@ import Foundation
 @testable import ProjectDescription
 
 extension Config {
-    public static func test(generationOptions: [Config.GenerationOptions] = []) -> Config {
-        Config(generationOptions: generationOptions)
+    public static func test(generationOptions: [Config.GenerationOptions] = [],
+                            plugins: [PluginLocation] = []) -> Config
+    {
+        Config(plugins: plugins, generationOptions: generationOptions)
     }
 }
 
@@ -52,7 +54,7 @@ extension Target {
                             bundleId: String = "com.some.bundle.id",
                             infoPlist: InfoPlist = .file(path: "Info.plist"),
                             sources: SourceFilesList = "Sources/**",
-                            resources: [FileElement] = "Resources/**",
+                            resources: ResourceFileElements = "Resources/**",
                             headers: Headers? = nil,
                             entitlements: Path? = Path("app.entitlements"),
                             actions: [TargetAction] = [],
@@ -163,5 +165,11 @@ extension Arguments {
 extension Dependencies {
     public static func test(dependencies: [Dependency] = []) -> Dependencies {
         Dependencies(dependencies)
+    }
+}
+
+extension Plugin {
+    public static func test(name: String = "Plugin") -> Plugin {
+        Plugin(name: name)
     }
 }

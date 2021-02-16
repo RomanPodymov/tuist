@@ -1,8 +1,8 @@
 import Foundation
 import TSCBasic
 import TuistCore
-
 import TuistCoreTesting
+import TuistGraph
 import TuistLoaderTesting
 @testable import TuistGenerator
 @testable import TuistSupport
@@ -91,7 +91,12 @@ final class TestModelGenerator {
     }
 
     private func createWorkspace(path: AbsolutePath, projects: [String]) throws -> Workspace {
-        Workspace(path: path, name: "Workspace", projects: projects.map { pathTo($0) })
+        Workspace(
+            path: path,
+            xcWorkspacePath: path.appending(component: "Workspace.xcworkspace"),
+            name: "Workspace",
+            projects: projects.map { pathTo($0) }
+        )
     }
 
     private func createProject(path: AbsolutePath, name: String, settings: Settings, targets: [Target], packages: [Package] = [], schemes: [Scheme]) -> Project {
@@ -150,14 +155,14 @@ final class TestModelGenerator {
         return Headers(public: publicHeaders, private: privateHeaders, project: projectHeaders)
     }
 
-    private func createResources(path: AbsolutePath) -> [FileElement] {
+    private func createResources(path: AbsolutePath) -> [ResourceFileElement] {
         let files = (0 ..< config.resources)
             .map { "Resources/Resource\($0).png" }
-            .map { FileElement.file(path: path.appending(RelativePath($0))) }
+            .map { ResourceFileElement.file(path: path.appending(RelativePath($0))) }
 
         let folderReferences = (0 ..< 10)
             .map { "Resources/Folder\($0)" }
-            .map { FileElement.folderReference(path: path.appending(RelativePath($0))) }
+            .map { ResourceFileElement.folderReference(path: path.appending(RelativePath($0))) }
 
         return (files + folderReferences).shuffled()
     }

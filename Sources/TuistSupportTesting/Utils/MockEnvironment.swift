@@ -22,6 +22,7 @@ public class MockEnvironment: Environmenting {
     public var isStandardOutputInteractive: Bool = false
     public var tuistVariables: [String: String] = [:]
     public var manifestLoadingVariables: [String: String] = [:]
+    public var isStatsEnabled: Bool = true
 
     public var versionsDirectory: AbsolutePath {
         directory.path.appending(component: "Versions")
@@ -29,6 +30,10 @@ public class MockEnvironment: Environmenting {
 
     public var settingsPath: AbsolutePath {
         directory.path.appending(component: "settings.json")
+    }
+
+    public var automationPath: AbsolutePath? {
+        nil
     }
 
     public var cacheDirectory: AbsolutePath {
@@ -41,6 +46,14 @@ public class MockEnvironment: Environmenting {
 
     public var projectDescriptionHelpersCacheDirectory: AbsolutePath {
         cacheDirectory.appending(component: "ProjectDescriptionHelpers")
+    }
+
+    public var projectsCacheDirectory: AbsolutePath {
+        cacheDirectory.appending(component: "Projects")
+    }
+
+    public var testsCacheDirectory: AbsolutePath {
+        cacheDirectory.appending(component: "TestsCache")
     }
 
     public var buildCacheDirectory: AbsolutePath {

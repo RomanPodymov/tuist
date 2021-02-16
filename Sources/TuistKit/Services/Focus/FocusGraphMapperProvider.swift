@@ -1,17 +1,20 @@
 import Foundation
 import TuistCache
 import TuistCore
+import TuistGraph
 
 final class FocusGraphMapperProvider: GraphMapperProviding {
     private let defaultProvider: GraphMapperProviding
     private let cacheSources: Set<String>
     private let cache: Bool
+    private let cacheProfile: TuistGraph.Cache.Profile
     private let cacheOutputType: CacheOutputType
     private let contentHasher: ContentHashing
 
     init(contentHasher: ContentHashing,
          cache: Bool,
          cacheSources: Set<String>,
+         cacheProfile: TuistGraph.Cache.Profile,
          cacheOutputType: CacheOutputType,
          defaultProvider: GraphMapperProviding = GraphMapperProvider())
     {
@@ -19,6 +22,7 @@ final class FocusGraphMapperProvider: GraphMapperProviding {
         self.cacheSources = cacheSources
         self.cache = cache
         self.defaultProvider = defaultProvider
+        self.cacheProfile = cacheProfile
         self.cacheOutputType = cacheOutputType
     }
 
@@ -31,8 +35,8 @@ final class FocusGraphMapperProvider: GraphMapperProviding {
             let cacheMapper = CacheMapper(config: config,
                                           cacheStorageProvider: CacheStorageProvider(config: config),
                                           sources: cacheSources,
-                                          cacheOutputType: cacheOutputType,
-                                          contentHasher: contentHasher)
+                                          cacheProfile: cacheProfile,
+                                          cacheOutputType: cacheOutputType)
             mappers.append(cacheMapper)
             mappers.append(CacheTreeShakingGraphMapper())
         }

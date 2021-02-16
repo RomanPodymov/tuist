@@ -1,6 +1,7 @@
 import Foundation
 import TSCBasic
 import TuistCore
+import TuistGraph
 import TuistSupport
 
 /// A project mapper that adds support for defining resources in targets that don't support it
@@ -21,7 +22,7 @@ public class ResourcesProjectMapper: ProjectMapping {
     }
 
     public func mapTarget(_ target: Target, project: Project) -> ([Target], [SideEffectDescriptor]) {
-        if target.resources.isEmpty { return ([target], []) }
+        if target.resources.isEmpty, target.coreDataModels.isEmpty { return ([target], []) }
         var additionalTargets: [Target] = []
         var sideEffects: [SideEffectDescriptor] = []
 
@@ -37,6 +38,7 @@ public class ResourcesProjectMapper: ProjectMapping {
                                          infoPlist: .extendingDefault(with: [:]),
                                          resources: target.resources,
                                          copyFiles: target.copyFiles,
+                                         coreDataModels: target.coreDataModels,
                                          filesGroup: target.filesGroup)
             modifiedTarget.resources = []
             modifiedTarget.copyFiles = []
@@ -69,6 +71,7 @@ public class ResourcesProjectMapper: ProjectMapping {
         if !target.supportsResources {
             return """
             // swiftlint:disable all
+            // swiftformat:disable all
             import Foundation
 
             // MARK: - Swift Bundle Accessor
@@ -105,10 +108,12 @@ public class ResourcesProjectMapper: ProjectMapping {
                }
             }
             // swiftlint:enable all
+            // swiftformat:enable all
             """
         } else {
             return """
             // swiftlint:disable all
+            // swiftformat:disable all
             import Foundation
 
             // MARK: - Swift Bundle Accessor
@@ -131,6 +136,7 @@ public class ResourcesProjectMapper: ProjectMapping {
                }
             }
             // swiftlint:enable all
+            // swiftformat:enable all
             """
         }
     }

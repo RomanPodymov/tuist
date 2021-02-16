@@ -5,14 +5,14 @@ import TuistSupport
 import XcodeProj
 
 public enum TargetsExtractorError: FatalError, Equatable {
-    case missingProject
+    case missingXcodeProj(AbsolutePath)
     case noTargets
     case failedToExtractTargets(String)
     case failedToEncode
 
     public var description: String {
         switch self {
-        case .missingProject: return "The project's pbxproj file contains no projects."
+        case let .missingXcodeProj(path): return "Couldn't find Xcode project at path \(path.pathString)."
         case .noTargets: return "The project doesn't have any targets."
         case .failedToEncode: return "Failed to encode targets into JSON schema"
         case let .failedToExtractTargets(reason): return "Failed to extract targets for reason: \(reason)."
@@ -21,7 +21,7 @@ public enum TargetsExtractorError: FatalError, Equatable {
 
     public var type: ErrorType {
         switch self {
-        case .missingProject:
+        case .missingXcodeProj:
             return .abort
         case .noTargets:
             return .abort
@@ -42,7 +42,8 @@ public protocol TargetsExtracting {
 
 public struct TargetDependencyCount: Encodable {
     public let targetName: String
-    public let dependenciesCount: Int
+    public let targetDependenciesNames: [String]
+    public let linkedFrameworksCount: Int
 }
 
 public final class TargetsExtractor: TargetsExtracting {
@@ -53,7 +54,7 @@ public final class TargetsExtractor: TargetsExtracting {
     // MARK: - EmptyBuildSettingsChecking
 
     public func targetsSortedByDependencies(xcodeprojPath: AbsolutePath) throws -> [TargetDependencyCount] {
-        guard FileHandler.shared.exists(xcodeprojPath) else { throw TargetsExtractorError.missingProject }
+        guard FileHandler.shared.exists(xcodeprojPath) else { throw TargetsExtractorError.missingXcodeProj(xcodeprojPath) }
         let pbxproj = try XcodeProj(path: Path(xcodeprojPath.pathString)).pbxproj
         let targets = pbxproj.nativeTargets + pbxproj.aggregateTargets + pbxproj.legacyTargets
         if targets.isEmpty {
@@ -63,22 +64,12 @@ public final class TargetsExtractor: TargetsExtracting {
     }
 
     private func sortTargetsByDependenciesCount(_ targets: [PBXTarget]) throws -> [TargetDependencyCount] {
-        let sortedTargets = try targets.sorted { lTarget, rTarget -> Bool in
-            let lCount = try countDependencies(of: lTarget)
-            let rCount = try countDependencies(of: rTarget)
-            if lCount == rCount {
-                return lTarget.name < rTarget.name
-            }
-            return lCount < rCount
-        }
-        return try sortedTargets.map { TargetDependencyCount(targetName: $0.name, dependenciesCount: try countDependencies(of: $0)) }
-    }
-
-    private func countDependencies(of target: PBXTarget) throws -> Int {
-        var count = target.dependencies.count
-        if let frameworkFiles = try target.frameworksBuildPhase()?.files {
-            count += frameworkFiles.count
-        }
-        return count
+        try topologicalSort(targets, successors: { $0.dependencies.compactMap(\.target) })
+            .reversed()
+            .map { TargetDependencyCount(
+                targetName: $0.name,
+                targetDependenciesNames: $0.dependencies.compactMap { $0.target?.name },
+                linkedFrameworksCount: try $0.frameworksBuildPhase()?.files?.count ?? 0
+            ) }
     }
 }

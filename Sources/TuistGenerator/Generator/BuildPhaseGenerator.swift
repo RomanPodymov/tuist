@@ -1,6 +1,7 @@
 import Foundation
 import TSCBasic
 import TuistCore
+import TuistGraph
 import TuistSupport
 import XcodeProj
 
@@ -69,11 +70,13 @@ final class BuildPhaseGenerator: BuildPhaseGenerating {
                                           pbxproj: pbxproj)
         }
 
-        try generateSourcesBuildPhase(files: target.sources,
-                                      coreDataModels: target.coreDataModels,
-                                      pbxTarget: pbxTarget,
-                                      fileElements: fileElements,
-                                      pbxproj: pbxproj)
+        if target.supportsSources {
+            try generateSourcesBuildPhase(files: target.sources,
+                                          coreDataModels: target.coreDataModels,
+                                          pbxTarget: pbxTarget,
+                                          fileElements: fileElements,
+                                          pbxproj: pbxproj)
+        }
 
         try generateResourcesBuildPhase(path: path,
                                         target: target,
@@ -203,13 +206,12 @@ final class BuildPhaseGenerator: BuildPhaseGenerating {
             }
         }
 
-        let coreDataModels = coreDataModels.sorted { $0.path < $1.path }
-        coreDataModels.forEach {
-            self.generateCoreDataModel(coreDataModel: $0,
-                                       fileElements: fileElements,
-                                       pbxproj: pbxproj,
-                                       sourcesBuildPhase: sourcesBuildPhase)
-        }
+        generateCoreDataModels(
+            coreDataModels: coreDataModels,
+            fileElements: fileElements,
+            pbxproj: pbxproj,
+            buildPhase: sourcesBuildPhase
+        )
     }
 
     func generateHeadersBuildPhase(headers: Headers,
@@ -249,7 +251,7 @@ final class BuildPhaseGenerator: BuildPhaseGenerating {
         pbxproj.add(object: resourcesBuildPhase)
         pbxTarget.buildPhases.append(resourcesBuildPhase)
 
-        try generateResourcesBuildFile(files: target.resources.map(\.path),
+        try generateResourcesBuildFile(files: target.resources,
                                        fileElements: fileElements,
                                        pbxproj: pbxproj,
                                        resourcesBuildPhase: resourcesBuildPhase)
@@ -260,6 +262,27 @@ final class BuildPhaseGenerator: BuildPhaseGenerating {
                                fileElements: fileElements,
                                pbxproj: pbxproj,
                                resourcesBuildPhase: resourcesBuildPhase)
+
+        if !target.supportsSources {
+            // CoreData models are typically added to the sources build phase
+            // and Xcode automatically bundles the models.
+            // For static libraries / frameworks however, they don't support resources,
+            // the models could be bundled in a stand alone `.bundle`
+            // as resources.
+            //
+            // e.g.
+            // MyStaticFramework (.staticFramework) -> Includes CoreData models as sources
+            // MyStaticFrameworkResources (.bundle) -> Includes CoreData models as resources
+            //
+            // - Note: Technically, CoreData models can be added a sources build phase in a `.bundle`
+            // but that will result in the `.bundle` having an executable, which is not valid on iOS.
+            generateCoreDataModels(
+                coreDataModels: target.coreDataModels,
+                fileElements: fileElements,
+                pbxproj: pbxproj,
+                buildPhase: resourcesBuildPhase
+            )
+        }
     }
 
     func generateCopyFilesBuildPhases(target: Target,
@@ -295,13 +318,15 @@ final class BuildPhaseGenerator: BuildPhaseGenerating {
         }
     }
 
-    private func generateResourcesBuildFile(files: [AbsolutePath],
+    private func generateResourcesBuildFile(files: [ResourceFileElement],
                                             fileElements: ProjectFileElements,
                                             pbxproj: PBXProj,
                                             resourcesBuildPhase: PBXResourcesBuildPhase) throws
     {
         var buildFilesCache = Set<AbsolutePath>()
-        try files.sorted().forEach { buildFilePath in
+        try files.sorted(by: { $0.path < $1.path }).forEach { resource in
+            let buildFilePath = resource.path
+
             let pathString = buildFilePath.pathString
             let isLocalized = pathString.contains(".lproj/")
             let isLproj = buildFilePath.extension == "lproj"
@@ -330,7 +355,10 @@ final class BuildPhaseGenerator: BuildPhaseGenerating {
                 element = (fileReference, buildFilePath)
             }
             if let element = element, buildFilesCache.contains(element.path) == false {
-                let pbxBuildFile = PBXBuildFile(file: element.element)
+                let tags = resource.tags.sorted()
+                let settings: [String: Any]? = !tags.isEmpty ? ["ASSET_TAGS": tags] : nil
+
+                let pbxBuildFile = PBXBuildFile(file: element.element, settings: settings)
                 pbxproj.add(object: pbxBuildFile)
                 resourcesBuildPhase.files?.append(pbxBuildFile)
                 buildFilesCache.insert(element.path)
@@ -338,10 +366,24 @@ final class BuildPhaseGenerator: BuildPhaseGenerating {
         }
     }
 
+    private func generateCoreDataModels(coreDataModels: [CoreDataModel],
+                                        fileElements: ProjectFileElements,
+                                        pbxproj: PBXProj,
+                                        buildPhase: PBXBuildPhase)
+    {
+        let coreDataModels = coreDataModels.sorted { $0.path < $1.path }
+        coreDataModels.forEach {
+            self.generateCoreDataModel(coreDataModel: $0,
+                                       fileElements: fileElements,
+                                       pbxproj: pbxproj,
+                                       buildPhase: buildPhase)
+        }
+    }
+
     private func generateCoreDataModel(coreDataModel: CoreDataModel,
                                        fileElements: ProjectFileElements,
                                        pbxproj: PBXProj,
-                                       sourcesBuildPhase: PBXSourcesBuildPhase)
+                                       buildPhase: PBXBuildPhase)
     {
         let currentVersion = coreDataModel.currentVersion
         let path = coreDataModel.path
@@ -353,7 +395,7 @@ final class BuildPhaseGenerator: BuildPhaseGenerating {
 
         let pbxBuildFile = PBXBuildFile(file: modelReference)
         pbxproj.add(object: pbxBuildFile)
-        sourcesBuildPhase.files?.append(pbxBuildFile)
+        buildPhase.files?.append(pbxBuildFile)
     }
 
     private func generateResourceBundle(path: AbsolutePath,

@@ -2,6 +2,8 @@ import Foundation
 import TSCBasic
 import TuistCore
 import TuistCoreTesting
+import TuistGraph
+import TuistGraphTesting
 import TuistSupport
 import XcodeProj
 import XCTest
@@ -63,7 +65,7 @@ final class ConfigGeneratorTests: TuistUnitTestCase {
         // Given
         let commonSettings = [
             "Base": "Base",
-            "INFOPLIST_FILE": "Info.plist",
+            "INFOPLIST_FILE": "$(SRCROOT)/Info.plist",
             "PRODUCT_BUNDLE_IDENTIFIER": "com.test.bundle_id",
             "CODE_SIGN_ENTITLEMENTS": "$(SRCROOT)/Test.entitlements",
             "SWIFT_VERSION": "5.2",
@@ -473,6 +475,7 @@ final class ConfigGeneratorTests: TuistUnitTestCase {
             .release("CustomRelease"): Configuration(settings: ["CustomRelease": "CustomRelease"], xcconfig: nil),
         ]
         let target = Target.test(name: "Test",
+                                 bundleId: "com.test.bundle_id",
                                  infoPlist: .file(path: AbsolutePath("/Info.plist")),
                                  entitlements: AbsolutePath("/Test.entitlements"),
                                  settings: Settings(base: ["Base": "Base"], configurations: configurations))

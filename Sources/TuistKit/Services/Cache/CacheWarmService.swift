@@ -2,6 +2,7 @@ import Foundation
 import TSCBasic
 import TuistCache
 import TuistCore
+import TuistGraph
 import TuistLoader
 import TuistSupport
 
@@ -16,9 +17,9 @@ final class CacheWarmService {
                                                     manifestLinter: manifestLinter)
     }
 
-    func run(path: String?, xcframeworks: Bool) throws {
+    func run(path: String?, profile: String?, xcframeworks: Bool, targets: [String]) throws {
         let path = self.path(path)
-        let config = try generatorModelLoader.loadConfig(at: currentPath)
+        let config = try generatorModelLoader.loadConfig(at: path)
         let cache = Cache(storageProvider: CacheStorageProvider(config: config))
         let cacheControllerFactory = CacheControllerFactory(cache: cache)
         let contentHasher = CacheContentHasher()
@@ -28,7 +29,9 @@ final class CacheWarmService {
         } else {
             cacheController = cacheControllerFactory.makeForSimulatorFramework(contentHasher: contentHasher)
         }
-        try cacheController.cache(path: path)
+
+        let profile = try CacheProfileResolver().resolveCacheProfile(named: profile, from: config)
+        try cacheController.cache(path: path, cacheProfile: profile, targetsToFilter: targets)
     }
 
     // MARK: - Helpers

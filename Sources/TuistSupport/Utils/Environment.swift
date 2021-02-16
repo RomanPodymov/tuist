@@ -14,14 +14,24 @@ public protocol Environmenting: AnyObject {
     /// Returns true if the output of Tuist should be coloured.
     var shouldOutputBeColoured: Bool { get }
 
+    /// Returns automation path
+    /// Only to be used for acceptance tests
+    var automationPath: AbsolutePath? { get }
+
     /// Returns the cache directory
     var cacheDirectory: AbsolutePath { get }
 
     /// Returns the directory where the project description helper modules are cached.
     var projectDescriptionHelpersCacheDirectory: AbsolutePath { get }
 
+    /// Directory where the projects generated for automation are located.
+    var projectsCacheDirectory: AbsolutePath { get }
+
     /// Returns the directory where the build artifacts are cached.
     var buildCacheDirectory: AbsolutePath { get }
+
+    /// Returns the directory where hashes of modules that have been a part of successful test are cached
+    var testsCacheDirectory: AbsolutePath { get }
 
     /// Returns all the environment variables that are specific to Tuist (prefixed with TUIST_)
     var tuistVariables: [String: String] { get }
@@ -34,6 +44,9 @@ public protocol Environmenting: AnyObject {
 
     /// Returns the path to the directory where the async queue events are persisted.
     var queueDirectory: AbsolutePath { get }
+
+    /// Returns true unless the user specifically opted out from stats
+    var isStatsEnabled: Bool { get }
 }
 
 /// Local environment controller.
@@ -99,6 +112,12 @@ public class Environment: Environmenting {
         return Constants.trueValues.contains(variable)
     }
 
+    public var isStatsEnabled: Bool {
+        guard let variable = ProcessInfo.processInfo.environment[Constants.EnvironmentVariables.statsOptOut] else { return true }
+        let userOptedOut = Constants.trueValues.contains(variable)
+        return !userOptedOut
+    }
+
     /// Returns the directory where all the versions are.
     public var versionsDirectory: AbsolutePath {
         if let envVariable = ProcessInfo.processInfo.environment[Constants.EnvironmentVariables.versionsDirectory] {
@@ -106,6 +125,10 @@ public class Environment: Environmenting {
         } else {
             return directory.appending(component: "Versions")
         }
+    }
+
+    public var testsCacheDirectory: AbsolutePath {
+        cacheDirectory.appending(component: "TestsCache")
     }
 
     /// Returns the directory where the build artifacts are cached.
@@ -116,6 +139,14 @@ public class Environment: Environmenting {
     /// Returns the directory where the project description helper modules are cached.
     public var projectDescriptionHelpersCacheDirectory: AbsolutePath {
         cacheDirectory.appending(component: "ProjectDescriptionHelpers")
+    }
+
+    public var projectsCacheDirectory: AbsolutePath {
+        cacheDirectory.appending(component: "Projects")
+    }
+
+    public var automationPath: AbsolutePath? {
+        ProcessInfo.processInfo.environment[Constants.EnvironmentVariables.automationPath].map { AbsolutePath($0) }
     }
 
     /// Returns the cache directory

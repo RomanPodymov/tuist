@@ -6,23 +6,18 @@ import TuistSupport
 struct CachePrintHashesCommand: ParsableCommand {
     static var configuration: CommandConfiguration {
         CommandConfiguration(commandName: "print-hashes",
+                             _superCommandName: "cache",
                              abstract: "Print the hashes of the cacheable frameworks in the given project.")
     }
 
-    @Option(
-        name: .shortAndLong,
-        help: "The path where the project will be generated.",
-        completion: .directory
-    )
-    var path: String?
-
-    @Flag(
-        name: [.customShort("x"), .long],
-        help: "When passed it caches the targets for simulator and device in a .xcframework"
-    )
-    var xcframeworks: Bool = false
+    @OptionGroup()
+    var options: CacheOptions
 
     func run() throws {
-        try CachePrintHashesService().run(path: path.map { AbsolutePath($0) } ?? FileHandler.shared.currentPath, xcframeworks: xcframeworks)
+        try CachePrintHashesService().run(
+            path: options.path.map { AbsolutePath($0) } ?? FileHandler.shared.currentPath,
+            xcframeworks: options.xcframeworks,
+            profile: options.profile
+        )
     }
 }

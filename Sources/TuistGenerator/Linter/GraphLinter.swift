@@ -1,6 +1,7 @@
 import Foundation
 import struct TSCUtility.Version
 import TuistCore
+import TuistGraph
 import TuistSupport
 
 public protocol GraphLinting: AnyObject {
@@ -40,6 +41,7 @@ public class GraphLinter: GraphLinting {
         issues.append(contentsOf: lintDependencies(graphTraverser: graphTraverser))
         issues.append(contentsOf: lintMismatchingConfigurations(graphTraverser: graphTraverser))
         issues.append(contentsOf: lintWatchBundleIndentifiers(graphTraverser: graphTraverser))
+        issues.append(contentsOf: lintBundleIdentifiers(graphTraverser: graphTraverser))
 
         return issues
     }
@@ -238,8 +240,45 @@ public class GraphLinter: GraphLinting {
         return foundIssues
     }
 
+    private struct BundleIdKey: Hashable {
+        let bundleId: String
+        let platform: Platform
+    }
+
+    private func lintBundleIdentifiers(graphTraverser: GraphTraversing) -> [LintingIssue] {
+        var bundleIds = [BundleIdKey: [String]]()
+        let buildSettingRegex = "\\$[\\({](.*)[\\)}]"
+
+        graphTraverser.targets
+            .flatMap { $0.value.map(\.value) }
+            .forEach { target in
+                if target.bundleId.matches(pattern: buildSettingRegex) {
+                    return
+                }
+
+                let key = BundleIdKey(bundleId: target.bundleId, platform: target.platform)
+
+                var targetsWithThisBundleId = bundleIds[key] ?? []
+                targetsWithThisBundleId.append(target.name)
+                bundleIds[key] = targetsWithThisBundleId
+            }
+
+        return duplicateBundleIdLintingIssue(for: bundleIds)
+    }
+
+    private func duplicateBundleIdLintingIssue(for targets: [BundleIdKey: [String]]) -> [LintingIssue] {
+        targets.compactMap { bundleIdKey, targetNames in
+            guard targetNames.count > 1 else {
+                return nil
+            }
+
+            let reason = "The bundle identifier '\(bundleIdKey.bundleId)' is being used by multiple targets: \(targetNames.sorted().listed())."
+            return LintingIssue(reason: reason, severity: .warning)
+        }.sorted(by: { $0.reason < $1.reason })
+    }
+
     struct LintableTarget: Equatable, Hashable {
-        let platform: TuistCore.Platform
+        let platform: TuistGraph.Platform
         let product: Product
     }
 
@@ -329,6 +368,7 @@ public class GraphLinter: GraphLinting {
         ],
         LintableTarget(platform: .macOS, product: .staticLibrary): [
             LintableTarget(platform: .macOS, product: .staticLibrary),
+            LintableTarget(platform: .macOS, product: .dynamicLibrary),
             LintableTarget(platform: .macOS, product: .staticFramework),
             LintableTarget(platform: .macOS, product: .framework),
             LintableTarget(platform: .macOS, product: .bundle),
@@ -370,6 +410,7 @@ public class GraphLinter: GraphLinting {
         ],
         LintableTarget(platform: .macOS, product: .commandLineTool): [
             LintableTarget(platform: .macOS, product: .staticLibrary),
+            LintableTarget(platform: .macOS, product: .dynamicLibrary),
             LintableTarget(platform: .macOS, product: .staticFramework),
         ],
         // tvOS

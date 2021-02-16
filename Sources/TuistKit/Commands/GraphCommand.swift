@@ -7,7 +7,9 @@ import TuistLoader
 import TuistSupport
 
 /// Command that generates and exports a dot graph from the workspace or project in the current directory.
-struct GraphCommand: ParsableCommand {
+struct GraphCommand: ParsableCommand, HasTrackableParameters {
+    static var analyticsDelegate: TrackableParametersDelegate?
+
     static var configuration: CommandConfiguration {
         CommandConfiguration(commandName: "graph",
                              abstract: "Generates a graph from the workspace or project in the current directory")
@@ -37,18 +39,34 @@ struct GraphCommand: ParsableCommand {
     )
     var layoutAlgorithm: GraphViz.LayoutAlgorithm = .dot
 
+    @Argument(help: "A list of targets to filter. Those and their dependent targets will be showed in the graph.")
+    var targets: [String] = []
+
+    @Option(
+        name: .shortAndLong,
+        help: "The path to the directory that contains the project whose targets will be cached.",
+        completion: .directory
+    )
+    var path: String?
+
     @Option(
         name: .shortAndLong,
         help: "The path where the graph will be generated."
     )
-    var path: String?
+    var outputPath: String?
 
     func run() throws {
+        GraphCommand.analyticsDelegate?.willRun(withParameters: ["format": format.rawValue,
+                                                                 "algorithm": layoutAlgorithm.rawValue,
+                                                                 "skip_external_dependencies": String(skipExternalDependencies),
+                                                                 "skip_test_targets": String(skipExternalDependencies)])
         try GraphService().run(format: format,
                                layoutAlgorithm: layoutAlgorithm,
                                skipTestTargets: skipTestTargets,
                                skipExternalDependencies: skipExternalDependencies,
-                               path: path)
+                               targetsToFilter: targets,
+                               path: path.map { AbsolutePath($0) } ?? FileHandler.shared.currentPath,
+                               outputPath: outputPath.map { AbsolutePath($0, relativeTo: FileHandler.shared.currentPath) } ?? FileHandler.shared.currentPath)
     }
 }
 

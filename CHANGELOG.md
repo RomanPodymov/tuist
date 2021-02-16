@@ -6,7 +6,89 @@ Please, check out guidelines: https://keepachangelog.com/en/1.0.0/
 
 ### Added
 
-- Add support for embedded scripts in a TargetAction. [#2192](https://github.com/tuist/tuist/pull/2192) by [@jsorge](https://github.com/jsorge)
+- Add ODR support [#2490](https://github.com/tuist/tuist/pull/2490) by [@DimaMishchenko](https://github.com/DimaMishchenko)
+
+### Changed
+
+- Replace `ExpressibleByStringLiteral` with `ExpressibleByStringInterpolation` for `ProjectDescription` objects by [@DimaMishchenko](https://github.com/DimaMishchenko)
+
+## 1.34.0 - Shipit
+
+### Added
+
+- Selective tests [#2422](https://github.com/tuist/tuist/pull/2422) by [@fortmarek](https://github.com/fortmarek)
+- Add support for `tuist cache warm` to cache a subset of targets via `tuist cache warm FrameworkA FrameworkB` [#2393]((https://github.com/tuist/tuist/pull/2393) by [@adellibovi](https://github.com/adellibovi).
+- Add documentation on how to use & create plugins by [@luispadron](https://github.com/luispadron)
+- Warn when targets with duplicate bundle identifiers exist per platform [#2444](https://github.com/tuist/tuist/pull/2444) by [@natanrolnik](https://github.com/natanrolnik).
+
+### Fixed
+
+- Fixed code coverage setting for project scheme [#2493](https://github.com/tuist/tuist/pull/2493) by [@adellibovi](https://github.com/adellibovi)
+- Fixed a bug in reporting stats event when Queue folder isn't created [#2497](https://github.com/tuist/tuist/pull/2497) by [@andreacipriani](https://github.com/andreacipriani).
+
+### Changed
+
+- Update post-generation interactors to use the graph traverser [#2451](https://github.com/tuist/tuist/pull/2451) by [@pepibumur](https://github.com/pepibumur).
+
+## 1.33.0 - Plugin
+
+### Added
+
+- Add support for `tuist graph` to show the graph of a subset of targets via `tuist graph FrameworkA FrameworkB` [#2434]((https://github.com/tuist/tuist/pull/2434) by [@adellibovi](https://github.com/adellibovi).
+- Send Tuist usage analytics event to https://stats.tuist.io/ [#2331](https://github.com/tuist/tuist/pull/2331) by [@andreacipriani](https://github.com/andreacipriani).
+- Plugin integration for local and git plugins by [@luispadron](https://github.com/luispadron) and [@kwridan](https://github.com/kwridan).
+- Introduce caching profiles [#2356](https://github.com/tuist/tuist/pull/2431) by [@mollyIV](https://github.com/mollyIV).
+
+### Fixed
+
+- Fixed homebrew invocation for `graph` functionality when looking up graphviz installation [#2466](https://github.com/tuist/tuist/pull/2446) by [@thedavidharris](https://github.com/danyf90)
+- Fix reading configuration from project if `Target.settings` is nil [#2399](https://github.com/tuist/tuist/pull/2399) by [@danyf90](https://github.com/danyf90).
+- Fix CoreData project attributes [#2397](https://github.com/tuist/tuist/pull/2397) by [@kwridan](https://github.com/kwridan).
+
+### Changed
+
+- The parameter `--path` of `tuist graph` now specifies where the manifest is. To specify the output directory of the graph, use `--output-path` [#2434]((https://github.com/tuist/tuist/pull/2434) by [@adellibovi](https://github.com/adellibovi).
+
+## 1.32.0 - Neubau
+
+### Added
+
+- Generate resource mapping and synthesized Bundle accessors for targets with Core Data models [#2376](https://github.com/tuist/tuist/pull/2376) by [@thedavidharris](https://github.com/thedavidharris).
+- Support for dynamic library dependencies for command line tool projects [#2332](https://github.com/tuist/tuist/pull/2332) by [@danyf90](https://github.com/danyf90).
+- Disable SwiftFormat in the generated synthesized interface for resources [#2328](https://github.com/tuist/tuist/pull/2328) by [@natanrolnik](https://github.com/natanrolnik).
+- Implement foundations for caching profiles [#2190](https://github.com/tuist/tuist/issues/2190) by [@mollyIV](https://github.com/mollyIV).
+
+### Fixed
+
+- Fix missing autocompletion link on website [#2396](https://github.com/tuist/tuist/pull/2396) by [@fortmarek](https://github.com/fortmarek).
+- Fix memory leak related to xcbeautify [#2380](https://github.com/tuist/tuist/pull/2380) by [@adellibovi](https://github.com/adellibovi).
+- Fix autocompletion script output and documentation [#2400](https://github.com/tuist/tuist/pull/2400) by [@danyf90](https://github.com/danyf90).
+- Fix cache's hash calculation of resources [#2325](https://github.com/tuist/tuist/pull/2325) by [@natanrolnik](https://github.com/natanrolnik).
+- Fixed known issue that causes the `xcodebuild` process hang when running `tuist test` and `tuist build`. [#2297](https://github.com/tuist/tuist/pull/2297) by [@Jake-Prickett](https://github.com/Jake-Prickett).
+- Fix missing vendor directory in built from source versions [#2388](https://github.com/tuist/tuist/pull/2388) by [@natanrolnik](https://github.com/natanrolnik).
+
+### Changed
+
+- Improve `tuist migration list-targets` by sorting using topological order [#2383](https://github.com/tuist/tuist/pull/2383) by [@adellibovi](https://github.com/adellibovi).
+- Use project generated for automation and always leverage `XXX-Scheme` [#2057](https://github.com/tuist/tuist/pull/2057) by [@fortmarek](https://github.com/fortmarek)
+- Improve the cache warm command significantly (around 20-45 seconds per framework) by using `XcodeProjectPathHasher` instead of `CacheBuildPhaseProjectMapper` [#2356](https://github.com/tuist/tuist/pull/2318) by [@natanrolnik](https://github.com/natanrolnik).
+- Improve performance of project generation by removing unneeded Glob directory cache [#2318](https://github.com/tuist/tuist/pull/2318) by [@adellibovi](https://github.com/adellibovi).
+- Extracted graph models into `TuistGraph` [#2324](https://github.com/tuist/tuist/pull/2324) by [@pepibumur](https://github.com/pepibumur).
+- Improved the CI workflows to run only when their logic is impacted by the file changes [#2390](https://github.com/tuist/tuist/pull/2390) by [@pepibumur](https://github.com/pepibumur).
+
+## 1.31.0 - Arctic
+
+### Added
+
+- Add linting for paths of local packages and for URL validity of remote packages [#2255](https://github.com/tuist/tuist/pull/2255) by [@adellibovi](https://github.com/adellibovi).
+- Allow use of a single cert for multiple provisioning profiles [#2193](https://github.com/tuist/tuist/pull/2193) by [@rist](https://github.com/rist).
+
+### Fixed
+
+- Update failing trying to create the `swift-project` symbolic link [#2244](https://github.com/tuist/tuist/pull/2244)
+- Tuist now correctly parses arm64e architectures in xcframeworks [#2247](https://github.com/tuist/tuist/pull/2247) by [@thedavidharris](https://github.com/thedavidharris).
+
+## 1.30.0 - 2021
 
 ### Fixed
 
@@ -15,11 +97,12 @@ Please, check out guidelines: https://keepachangelog.com/en/1.0.0/
 
 ### Added
 
+- Add support for embedded scripts in a TargetAction. [#2192](https://github.com/tuist/tuist/pull/2192) by [@jsorge](https://github.com/jsorge)
 - Support for `Carthage` dependencies in `Dependencies.swift` [#2060](https://github.com/tuist/tuist/pull/2060) by [@laxmorek](https://github.com/laxmorek).
-- Fourier CLI tool to automate development tasks [#2196](https://github.com/tuist/tuist/pull/2196) by @pepibumur](https://github.com/pepibumur).
-- Add support for embedded scripts in a TargetAction. [#2192](https://github.com/tuist/tuist/pull/2192) by [@jsorge]
-- Support `.s` source files [#2199](https://github.com/tuist/tuist/pull/2199) by[ @dcvz](https://github.com/dcvz).
-- Support for printing from the manifest files [#2215](https://github.com/tuist/tuist/pull/2215) by @pepibumur](https://github.com/pepibumur).
+- Fourier CLI tool to automate development tasks [#2196](https://github.com/tuist/tuist/pull/2196) by [@pepibumur](https://github.com/pepibumur).
+- Add support for embedded scripts in a TargetAction. [#2192](https://github.com/tuist/tuist/pull/2192) by [@jsorge](https://github.com/jsorge)
+- Support `.s` source files [#2199](https://github.com/tuist/tuist/pull/2199) by [@dcvz](https://github.com/dcvz).
+- Support for printing from the manifest files [#2215](https://github.com/tuist/tuist/pull/2215) by [@pepibumur](https://github.com/pepibumur).
 
 ### Changed
 

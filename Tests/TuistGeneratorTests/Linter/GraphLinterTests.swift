@@ -2,11 +2,13 @@ import Foundation
 import TSCBasic
 import struct TSCUtility.Version
 import TuistCore
+import TuistGraph
 import TuistSupport
 import XCTest
 
 @testable import TuistCoreTesting
 @testable import TuistGenerator
+@testable import TuistGraphTesting
 @testable import TuistSupportTesting
 
 final class GraphLinterTests: TuistUnitTestCase {
@@ -858,10 +860,7 @@ final class GraphLinterTests: TuistUnitTestCase {
         let got = subject.lint(graphTraverser: graphTraverser)
 
         // Then
-        XCTAssertEqual(got, [
-            LintingIssue(reason: "Target App has a dependency with target Dynamic of type dynamic library for platform 'macOS' which is invalid or not supported yet.",
-                         severity: .error),
-        ])
+        XCTAssertEmpty(got)
     }
 
     func test_lint_when_cli_tool_links_supported_dependencies() throws {
@@ -893,6 +892,127 @@ final class GraphLinterTests: TuistUnitTestCase {
                                     workspace: Workspace.test(projects: [path]),
                                     projects: [path: project],
                                     targets: [path: [tool.name: tool, staticFmwk.name: staticFmwk, staticLib.name: staticLib]],
+                                    dependencies: dependencies)
+        let graphTraverser = ValueGraphTraverser(graph: graph)
+
+        // When
+        let got = subject.lint(graphTraverser: graphTraverser)
+
+        // Then
+        XCTAssertEmpty(got)
+    }
+
+    func test_lintDifferentBundleIdentifiers() {
+        // Given
+        let path: AbsolutePath = "/project"
+        let appTarget = Target.test(name: "AppTarget", product: .app)
+        let frameworkA = Target.test(name: "frameworkA", product: .framework, bundleId: "com.tuist.frameworks.test")
+        let frameworkB = Target.test(name: "frameworkB", product: .framework, bundleId: "com.tuist.frameworks.test2")
+
+        let app = Project.test(path: path, name: "App", targets: [appTarget])
+        let frameworks1 = Project.test(path: "/tmp/frameworks1",
+                                       name: "Frameworks1",
+                                       targets: [frameworkA, frameworkB])
+
+        let dependencies: [ValueGraphDependency: Set<ValueGraphDependency>] = [
+            .target(name: app.name, path: path): Set([.target(name: frameworkA.name, path: frameworks1.path),
+                                                      .target(name: frameworkB.name, path: frameworks1.path)]),
+        ]
+
+        let project = Project.test(path: path, targets: [appTarget, frameworkA, frameworkB])
+
+        let graph = ValueGraph.test(path: path,
+                                    workspace: Workspace.test(projects: [path]),
+                                    projects: [path: project],
+                                    targets: [path: [appTarget.name: appTarget],
+                                              frameworks1.path: [frameworkA.name: frameworkA, frameworkB.name: frameworkB]],
+                                    dependencies: dependencies)
+        let graphTraverser = ValueGraphTraverser(graph: graph)
+
+        // When
+        let got = subject.lint(graphTraverser: graphTraverser)
+
+        // Then
+        XCTAssertEmpty(got)
+    }
+
+    func test_lintDuplicateBundleIdentifiers() {
+        // Given
+        let path: AbsolutePath = "/project"
+        let appTarget = Target.test(name: "AppTarget", product: .app)
+        let frameworkA = Target.test(name: "frameworkA", product: .framework, bundleId: "com.tuist.frameworks.test")
+        let frameworkB = Target.test(name: "frameworkB", product: .framework, bundleId: "com.tuist.frameworks.test")
+        let frameworkC = Target.test(name: "frameworkC", product: .framework, bundleId: "com.tuist.frameworks.test2")
+        let frameworkD = Target.test(name: "frameworkD", product: .framework, bundleId: "com.tuist.frameworks.test3")
+        let frameworkE = Target.test(name: "frameworkE", product: .framework, bundleId: "com.tuist.frameworks.test2")
+        let frameworkF = Target.test(name: "frameworkF", product: .framework, bundleId: "com.tuist.frameworks.test")
+
+        let app = Project.test(path: path, name: "App", targets: [appTarget])
+        let frameworks1 = Project.test(path: "/tmp/frameworks1",
+                                       name: "Frameworks1",
+                                       targets: [frameworkA, frameworkB])
+        let frameworks2 = Project.test(path: "/tmp/frameworks2",
+                                       name: "Frameworks2",
+                                       targets: [frameworkC, frameworkD])
+        let frameworks3 = Project.test(path: "/tmp/frameworks3",
+                                       name: "Frameworks3",
+                                       targets: [frameworkE, frameworkF])
+
+        let dependencies: [ValueGraphDependency: Set<ValueGraphDependency>] = [
+            .target(name: app.name, path: path): Set([.target(name: frameworkA.name, path: frameworks1.path),
+                                                      .target(name: frameworkB.name, path: frameworks1.path),
+                                                      .target(name: frameworkC.name, path: frameworks2.path),
+                                                      .target(name: frameworkD.name, path: frameworks2.path),
+                                                      .target(name: frameworkE.name, path: frameworks3.path),
+                                                      .target(name: frameworkF.name, path: frameworks3.path)]),
+        ]
+
+        let project = Project.test(path: path, targets: [appTarget, frameworkA, frameworkB, frameworkC, frameworkD, frameworkE, frameworkF])
+
+        let graph = ValueGraph.test(path: path,
+                                    workspace: Workspace.test(projects: [path]),
+                                    projects: [path: project],
+                                    targets: [path: [appTarget.name: appTarget],
+                                              frameworks1.path: [frameworkA.name: frameworkA, frameworkB.name: frameworkB],
+                                              frameworks2.path: [frameworkC.name: frameworkC, frameworkD.name: frameworkD],
+                                              frameworks3.path: [frameworkE.name: frameworkE, frameworkF.name: frameworkF]],
+                                    dependencies: dependencies)
+        let graphTraverser = ValueGraphTraverser(graph: graph)
+
+        // When
+        let got = subject.lint(graphTraverser: graphTraverser)
+
+        // Then
+        XCTAssertEqual(got, [
+            LintingIssue(reason: "The bundle identifier 'com.tuist.frameworks.test' is being used by multiple targets: frameworkA, frameworkB, and frameworkF.", severity: .warning),
+            LintingIssue(reason: "The bundle identifier 'com.tuist.frameworks.test2' is being used by multiple targets: frameworkC and frameworkE.", severity: .warning),
+        ])
+    }
+
+    func test_lintBundleIdentifiersShouldIgnoreVariables() {
+        // Given
+        let path: AbsolutePath = "/project"
+        let appTarget = Target.test(name: "AppTarget", product: .app)
+        let frameworkA = Target.test(name: "frameworkA", product: .framework, bundleId: "${ANY_VARIABLE}")
+        let frameworkB = Target.test(name: "frameworkB", product: .framework, bundleId: "${ANY_VARIABLE}")
+
+        let app = Project.test(path: path, name: "App", targets: [appTarget])
+        let frameworks1 = Project.test(path: "/tmp/frameworks1",
+                                       name: "Frameworks1",
+                                       targets: [frameworkA, frameworkB])
+
+        let dependencies: [ValueGraphDependency: Set<ValueGraphDependency>] = [
+            .target(name: app.name, path: path): Set([.target(name: frameworkA.name, path: frameworks1.path),
+                                                      .target(name: frameworkB.name, path: frameworks1.path)]),
+        ]
+
+        let project = Project.test(path: path, targets: [appTarget, frameworkA, frameworkB])
+
+        let graph = ValueGraph.test(path: path,
+                                    workspace: Workspace.test(projects: [path]),
+                                    projects: [path: project],
+                                    targets: [path: [appTarget.name: appTarget],
+                                              frameworks1.path: [frameworkA.name: frameworkA, frameworkB.name: frameworkB]],
                                     dependencies: dependencies)
         let graphTraverser = ValueGraphTraverser(graph: graph)
 

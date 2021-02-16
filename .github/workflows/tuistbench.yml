@@ -5,6 +5,11 @@ on:
     branches:
       - main
   pull_request:
+    paths:
+      - tools/tuistbench/**
+
+env:
+  TUIST_STATS_OPT_OUT: true
 
 jobs:
   test:

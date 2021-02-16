@@ -2,6 +2,7 @@ import Foundation
 import PathKit
 import TSCBasic
 import TuistCore
+import TuistGraph
 import TuistSupport
 import XcodeProj
 
@@ -229,7 +230,8 @@ final class LinkGenerator: LinkGenerating {
                                                          includeSymbolsInFileLists: !target.product.testsBundle)
 
             precompiledEmbedPhase.shellScript = script.script
-            precompiledEmbedPhase.inputPaths = script.inputPaths.map(\.pathString)
+            precompiledEmbedPhase.inputPaths = script.inputPaths
+                .map { "$(SRCROOT)/\($0.pathString)" }
             precompiledEmbedPhase.outputPaths = script.outputPaths
         }
     }
