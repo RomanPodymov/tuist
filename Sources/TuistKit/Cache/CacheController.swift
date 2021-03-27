@@ -43,10 +43,12 @@ class CacheControllerProjectGeneratorProvider: CacheControllerProjectGeneratorPr
         let contentHasher = CacheContentHasher()
         let projectMapperProvider = CacheControllerProjectMapperProvider(contentHasher: contentHasher)
         let workspaceMapperProvider = WorkspaceMapperProvider(projectMapperProvider: projectMapperProvider)
-        return Generator(projectMapperProvider: projectMapperProvider,
-                         graphMapperProvider: GraphMapperProvider(),
-                         workspaceMapperProvider: workspaceMapperProvider,
-                         manifestLoaderFactory: ManifestLoaderFactory())
+        return Generator(
+            projectMapperProvider: projectMapperProvider,
+            graphMapperProvider: GraphMapperProvider(),
+            workspaceMapperProvider: workspaceMapperProvider,
+            manifestLoaderFactory: ManifestLoaderFactory()
+        )
     }
 }
 
@@ -79,11 +81,13 @@ final class CacheController: CacheControlling {
                      artifactBuilder: CacheArtifactBuilding,
                      contentHasher: ContentHashing)
     {
-        self.init(cache: cache,
-                  artifactBuilder: artifactBuilder,
-                  projectGeneratorProvider: CacheControllerProjectGeneratorProvider(contentHasher: contentHasher),
-                  cacheGraphContentHasher: CacheGraphContentHasher(contentHasher: contentHasher),
-                  cacheGraphLinter: CacheGraphLinter())
+        self.init(
+            cache: cache,
+            artifactBuilder: artifactBuilder,
+            projectGeneratorProvider: CacheControllerProjectGeneratorProvider(contentHasher: contentHasher),
+            cacheGraphContentHasher: CacheGraphContentHasher(contentHasher: contentHasher),
+            cacheGraphLinter: CacheGraphLinter()
+        )
     }
 
     init(cache: CacheStoring,
@@ -114,23 +118,30 @@ final class CacheController: CacheControlling {
             cacheOutputType: artifactBuilder.cacheOutputType
         )
 
-        let filteredTargets: [TargetNode]
+        let filteredTargets: [ValueGraphTarget]
         if targetsToFilter.isEmpty {
             filteredTargets = Array(hashesByCacheableTarget.keys)
         } else {
-            filteredTargets = Array(hashesByCacheableTarget.keys.filter { targetsToFilter.contains($0.name) })
+            filteredTargets = Array(hashesByCacheableTarget.keys.filter { targetsToFilter.contains($0.target.name) })
         }
 
         logger.notice("Building cacheable targets")
-        let sortedCacheableTargets = try topologicalSort(filteredTargets, successors: \.targetDependencies)
+
+        let graphTraveser = ValueGraphTraverser(graph: graph)
+        let sortedCacheableTargets = try topologicalSort(
+            filteredTargets,
+            successors: {
+                Array(graphTraveser.directTargetDependencies(path: $0.path, name: $0.target.name))
+            }
+        )
 
         for (index, target) in sortedCacheableTargets.reversed().enumerated() {
-            logger.notice("Building cacheable targets: \(target.name), \(index + 1) out of \(sortedCacheableTargets.count)")
+            logger.notice("Building cacheable targets: \(target.target.name), \(index + 1) out of \(sortedCacheableTargets.count)")
 
             let hash = hashesByCacheableTarget[target]!
 
             if let exists = try cache.exists(hash: hash).toBlocking().first(), exists {
-                logger.pretty("The target \(.bold(.raw(target.name))) with hash \(.bold(.raw(hash))) and type \(artifactBuilder.cacheOutputType.description) is already in the cache. Skipping...")
+                logger.pretty("The target \(.bold(.raw(target.target.name))) with hash \(.bold(.raw(hash))) and type \(artifactBuilder.cacheOutputType.description) is already in the cache. Skipping...")
                 continue
             }
 
@@ -148,7 +159,7 @@ final class CacheController: CacheControlling {
     ///   - configuration: The configuration.
     ///   - hash: Hash of the target.
     fileprivate func buildAndCacheFramework(path: AbsolutePath,
-                                            target: TargetNode,
+                                            target: ValueGraphTarget,
                                             configuration: String,
                                             hash: String) throws
     {
@@ -158,15 +169,19 @@ final class CacheController: CacheControlling {
         }
 
         if path.extension == "xcworkspace" {
-            try artifactBuilder.build(workspacePath: path,
-                                      target: target.target,
-                                      configuration: configuration,
-                                      into: outputDirectory)
+            try artifactBuilder.build(
+                workspacePath: path,
+                target: target.target,
+                configuration: configuration,
+                into: outputDirectory
+            )
         } else {
-            try artifactBuilder.build(projectPath: path,
-                                      target: target.target,
-                                      configuration: configuration,
-                                      into: outputDirectory)
+            try artifactBuilder.build(
+                projectPath: path,
+                target: target.target,
+                configuration: configuration,
+                into: outputDirectory
+            )
         }
 
         _ = try cache.store(hash: hash, paths: FileHandler.shared.glob(outputDirectory, glob: "*")).toBlocking().last()

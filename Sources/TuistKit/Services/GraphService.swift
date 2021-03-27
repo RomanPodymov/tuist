@@ -2,22 +2,33 @@ import DOT
 import Foundation
 import GraphViz
 import TSCBasic
+import TuistCore
 import TuistGenerator
 import TuistLoader
+import TuistPlugin
 import TuistSupport
 
 final class GraphService {
-    /// Dot graph generator.
-    private let graphVizGenerator: GraphVizGenerating
+    private let graphVizMapper: GraphToGraphVizMapping
+    private let manifestGraphLoader: ManifestGraphLoading
 
-    /// Manifest loader.
-    private let manifestLoader: ManifestLoading
+    convenience init() {
+        let manifestLoader = ManifestLoaderFactory()
+            .createManifestLoader()
+        let manifestGraphLoader = ManifestGraphLoader(manifestLoader: manifestLoader)
+        let graphVizMapper = GraphToGraphVizMapper()
+        self.init(
+            graphVizGenerator: graphVizMapper,
+            manifestGraphLoader: manifestGraphLoader
+        )
+    }
 
-    init(graphVizGenerator: GraphVizGenerating = GraphVizGenerator(modelLoader: GeneratorModelLoader(manifestLoader: ManifestLoader(),
-                                                                                                     manifestLinter: ManifestLinter())),
-    manifestLoader: ManifestLoading = ManifestLoader()) {
-        self.graphVizGenerator = graphVizGenerator
-        self.manifestLoader = manifestLoader
+    init(
+        graphVizGenerator: GraphToGraphVizMapping,
+        manifestGraphLoader: ManifestGraphLoading
+    ) {
+        graphVizMapper = graphVizGenerator
+        self.manifestGraphLoader = manifestGraphLoader
     }
 
     func run(format: GraphFormat,
@@ -28,11 +39,15 @@ final class GraphService {
              path: AbsolutePath,
              outputPath: AbsolutePath) throws
     {
-        let graphVizGraph = try graphVizGenerator.generate(at: path,
-                                                           manifestLoader: manifestLoader,
-                                                           skipTestTargets: skipTestTargets,
-                                                           skipExternalDependencies: skipExternalDependencies,
-                                                           targetsToFilter: targetsToFilter)
+        let graph = try manifestGraphLoader.loadGraph(at: path)
+
+        let graphVizGraph = graphVizMapper.map(
+            graph: graph,
+            skipTestTargets: skipTestTargets,
+            skipExternalDependencies: skipExternalDependencies,
+            targetsToFilter: targetsToFilter
+        )
+
         let filePath = outputPath.appending(component: "graph.\(format.rawValue)")
         if FileHandler.shared.exists(filePath) {
             logger.notice("Deleting existing graph at \(filePath.pathString)")

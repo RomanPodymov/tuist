@@ -11,10 +11,10 @@ public protocol CacheGraphContentHashing {
     ///     - cacheProfile: Cache profile currently being used
     ///     - cacheOutputType: Output type of cache -> makes a different hash for a different output type
     func contentHashes(
-        for graph: TuistCore.Graph,
+        for graph: ValueGraph,
         cacheProfile: TuistGraph.Cache.Profile,
         cacheOutputType: CacheOutputType
-    ) throws -> [TargetNode: String]
+    ) throws -> [ValueGraphTarget: String]
 }
 
 public final class CacheGraphContentHasher: CacheGraphContentHashing {
@@ -43,13 +43,14 @@ public final class CacheGraphContentHasher: CacheGraphContentHashing {
     }
 
     public func contentHashes(
-        for graph: Graph,
+        for graph: ValueGraph,
         cacheProfile: TuistGraph.Cache.Profile,
         cacheOutputType: CacheOutputType
-    ) throws -> [TargetNode: String] {
-        try graphContentHasher.contentHashes(
+    ) throws -> [ValueGraphTarget: String] {
+        let graphTraverser = ValueGraphTraverser(graph: graph)
+        return try graphContentHasher.contentHashes(
             for: graph,
-            filter: filterHashTarget,
+            filter: { filterHashTarget($0, graphTraverser: graphTraverser) },
             additionalStrings: [
                 cacheProfileContentHasher.hash(cacheProfile: cacheProfile),
                 cacheOutputType.description,
@@ -57,9 +58,12 @@ public final class CacheGraphContentHasher: CacheGraphContentHashing {
         )
     }
 
-    private func filterHashTarget(_ target: TargetNode) -> Bool {
+    private func filterHashTarget(
+        _ target: ValueGraphTarget,
+        graphTraverser: GraphTraversing
+    ) -> Bool {
         let isFramework = target.target.product == .framework || target.target.product == .staticFramework
-        let noXCTestDependency = !target.dependsOnXCTest
+        let noXCTestDependency = !graphTraverser.dependsOnXCTest(path: target.path, name: target.target.name)
         return isFramework && noXCTestDependency
     }
 }

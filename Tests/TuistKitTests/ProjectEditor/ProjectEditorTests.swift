@@ -4,6 +4,8 @@ import TuistCore
 import TuistGraph
 import TuistGraphTesting
 import TuistLoader
+import TuistPlugin
+import TuistPluginTesting
 import TuistSupport
 import XCTest
 
@@ -32,8 +34,7 @@ final class ProjectEditorTests: TuistUnitTestCase {
     var helpersDirectoryLocator: MockHelpersDirectoryLocator!
     var writer: MockXcodeProjWriter!
     var templatesDirectoryLocator: MockTemplatesDirectoryLocator!
-    var projectMapper: MockProjectMapper!
-    var sideEffectDescriptorExecutor: MockSideEffectDescriptorExecutor!
+    var projectDescriptionHelpersBuilder: MockProjectDescriptionHelpersBuilder!
     var subject: ProjectEditor!
 
     override func setUp() {
@@ -45,17 +46,17 @@ final class ProjectEditorTests: TuistUnitTestCase {
         helpersDirectoryLocator = MockHelpersDirectoryLocator()
         writer = MockXcodeProjWriter()
         templatesDirectoryLocator = MockTemplatesDirectoryLocator()
-        projectMapper = MockProjectMapper()
-        sideEffectDescriptorExecutor = MockSideEffectDescriptorExecutor()
-        subject = ProjectEditor(generator: generator,
-                                projectEditorMapper: projectEditorMapper,
-                                resourceLocator: resourceLocator,
-                                manifestFilesLocator: manifestFilesLocator,
-                                helpersDirectoryLocator: helpersDirectoryLocator,
-                                writer: writer,
-                                templatesDirectoryLocator: templatesDirectoryLocator,
-                                projectMapper: projectMapper,
-                                sideEffectDescriptorExecutor: sideEffectDescriptorExecutor)
+        projectDescriptionHelpersBuilder = MockProjectDescriptionHelpersBuilder()
+        subject = ProjectEditor(
+            generator: generator,
+            projectEditorMapper: projectEditorMapper,
+            resourceLocator: resourceLocator,
+            manifestFilesLocator: manifestFilesLocator,
+            helpersDirectoryLocator: helpersDirectoryLocator,
+            writer: writer,
+            templatesDirectoryLocator: templatesDirectoryLocator,
+            projectDescriptionHelpersBuilder: projectDescriptionHelpersBuilder
+        )
     }
 
     override func tearDown() {
@@ -66,8 +67,6 @@ final class ProjectEditorTests: TuistUnitTestCase {
         manifestFilesLocator = nil
         helpersDirectoryLocator = nil
         templatesDirectoryLocator = nil
-        projectMapper = nil
-        sideEffectDescriptorExecutor = nil
         subject = nil
     }
 
@@ -75,8 +74,7 @@ final class ProjectEditorTests: TuistUnitTestCase {
         // Given
         let directory = try temporaryPath()
         let projectDescriptionPath = directory.appending(component: "ProjectDescription.framework")
-        let project = Project.test(path: directory, name: "Edit")
-        let graph = Graph.test(name: "Edit")
+        let graph = ValueGraph.test(name: "Edit")
         let helpersDirectory = directory.appending(component: "ProjectDescriptionHelpers")
         try FileHandler.shared.createFolder(helpersDirectory)
         let helpers = ["A.swift", "B.swift"].map { helpersDirectory.appending(component: $0) }
@@ -93,20 +91,13 @@ final class ProjectEditorTests: TuistUnitTestCase {
         manifestFilesLocator.locateDependenciesStub = dependenciesPath
         manifestFilesLocator.locateSetupStub = setupPath
         helpersDirectoryLocator.locateStub = helpersDirectory
-        projectEditorMapper.mapStub = (project, graph)
-        var mappedProject: Project?
-        projectMapper.mapStub = { project in
-            mappedProject = project
-            return (project, [])
-        }
-        var generatedProject: Project?
-        generator.generateProjectSub = { project, _ in
-            generatedProject = project
-            return .test(xcodeprojPath: directory.appending(component: "Edit.xcodeproj"))
+        projectEditorMapper.mapStub = graph
+        generator.generateWorkspaceStub = { _ in
+            .test(xcworkspacePath: directory.appending(component: "Edit.xcworkspacepath"))
         }
 
         // When
-        try _ = subject.edit(at: directory, in: directory)
+        try _ = subject.edit(at: directory, in: directory, plugins: .test())
 
         // Then
         XCTAssertEqual(projectEditorMapper.mapArgs.count, 1)
@@ -118,26 +109,220 @@ final class ProjectEditorTests: TuistUnitTestCase {
         XCTAssertEqual(mapArgs?.configPath, configPath)
         XCTAssertEqual(mapArgs?.setupPath, setupPath)
         XCTAssertEqual(mapArgs?.dependenciesPath, dependenciesPath)
-        XCTAssertEqual(project, mappedProject)
-
-        XCTAssertEqual(generatedProject, project)
     }
 
     func test_edit_when_there_are_no_editable_files() throws {
         // Given
         let directory = try temporaryPath()
         let projectDescriptionPath = directory.appending(component: "ProjectDescription.framework")
-        let project = Project.test(path: directory, name: "Edit")
-        let graph = Graph.test(name: "Edit")
+        let graph = ValueGraph.test(name: "Edit")
         let helpersDirectory = directory.appending(component: "ProjectDescriptionHelpers")
         try FileHandler.shared.createFolder(helpersDirectory)
 
         resourceLocator.projectDescriptionStub = { projectDescriptionPath }
-        manifestFilesLocator.locateAllProjectManifestsStubs = []
+        manifestFilesLocator.locateProjectManifestsStub = []
+        manifestFilesLocator.locatePluginManifestsStub = []
         helpersDirectoryLocator.locateStub = helpersDirectory
-        projectEditorMapper.mapStub = (project, graph)
+        projectEditorMapper.mapStub = graph
+        generator.generateWorkspaceStub = { _ in
+            .test(xcworkspacePath: directory.appending(component: "Edit.xcworkspacepath"))
+        }
+
+        // Then
+        XCTAssertThrowsSpecific(
+            // When
+            try subject.edit(at: directory, in: directory, plugins: .test()), ProjectEditorError.noEditableFiles(directory)
+        )
+    }
+
+    func test_edit_with_plugin() throws {
+        // Given
+        let directory = try temporaryPath()
+        let projectDescriptionPath = directory.appending(component: "ProjectDescription.framework")
+        let graph = ValueGraph.test(name: "Edit")
+        let pluginManifest = directory.appending(component: "Plugin.swift")
+        let tuistPath = AbsolutePath(ProcessInfo.processInfo.arguments.first!)
 
         // When
-        XCTAssertThrowsSpecific(try subject.edit(at: directory, in: directory), ProjectEditorError.noEditableFiles(directory))
+        resourceLocator.projectDescriptionStub = { projectDescriptionPath }
+        manifestFilesLocator.locatePluginManifestsStub = [pluginManifest]
+
+        projectEditorMapper.mapStub = graph
+        generator.generateWorkspaceStub = { _ in
+            .test(xcworkspacePath: directory.appending(component: "Edit.xcworkspace"))
+        }
+
+        // When
+        try _ = subject.edit(at: directory, in: directory, plugins: .test())
+
+        // Then
+        XCTAssertEqual(projectEditorMapper.mapArgs.count, 1)
+        let mapArgs = projectEditorMapper.mapArgs.first
+        XCTAssertEqual(mapArgs?.tuistPath, tuistPath)
+        XCTAssertEqual(mapArgs?.sourceRootPath, directory)
+        XCTAssertEqual(mapArgs?.projectDescriptionPath, projectDescriptionPath)
+        XCTAssertEqual(mapArgs?.editablePluginManifests.map(\.path), [pluginManifest].map(\.parentDirectory))
+        XCTAssertEqual(mapArgs?.pluginProjectDescriptionHelpersModule, [])
+    }
+
+    func test_edit_with_many_plugins() throws {
+        // Given
+        let directory = try temporaryPath()
+        let projectDescriptionPath = directory.appending(component: "ProjectDescription.framework")
+        let graph = ValueGraph.test(name: "Edit")
+        let pluginManifests = [
+            directory.appending(components: "A", "Plugin.swift"),
+            directory.appending(components: "B", "Plugin.swift"),
+            directory.appending(components: "C", "Plugin.swift"),
+            directory.appending(components: "D", "Plugin.swift"),
+        ]
+        let tuistPath = AbsolutePath(ProcessInfo.processInfo.arguments.first!)
+
+        // When
+        resourceLocator.projectDescriptionStub = { projectDescriptionPath }
+        manifestFilesLocator.locatePluginManifestsStub = pluginManifests
+
+        projectEditorMapper.mapStub = graph
+        generator.generateWorkspaceStub = { _ in
+            .test(xcworkspacePath: directory.appending(component: "Edit.xcworkspacepath"))
+        }
+
+        // When
+        try _ = subject.edit(at: directory, in: directory, plugins: .test())
+
+        // Then
+        XCTAssertEqual(projectEditorMapper.mapArgs.count, 1)
+        let mapArgs = projectEditorMapper.mapArgs.first
+        XCTAssertEqual(mapArgs?.tuistPath, tuistPath)
+        XCTAssertEqual(mapArgs?.sourceRootPath, directory)
+        XCTAssertEqual(mapArgs?.projectDescriptionPath, projectDescriptionPath)
+        XCTAssertEqual(mapArgs?.editablePluginManifests.map(\.path).sorted(), pluginManifests.map(\.parentDirectory))
+        XCTAssertEqual(mapArgs?.pluginProjectDescriptionHelpersModule, [])
+    }
+
+    func test_edit_project_with_local_plugins() throws {
+        // Given
+        let directory = try temporaryPath()
+        let projectDescriptionPath = directory.appending(component: "ProjectDescription.framework")
+        let graph = ValueGraph.test(name: "Edit")
+
+        // Project
+        let manifests: [(Manifest, AbsolutePath)] = [(.project, directory.appending(component: "Project.swift"))]
+
+        // Local plugin
+        let pluginDirectory = directory.appending(component: "Plugin")
+        let pluginHelpersDirectory = pluginDirectory.appending(component: "ProjectDescriptionHelpers")
+        try FileHandler.shared.createFolder(pluginDirectory)
+        try FileHandler.shared.createFolder(pluginHelpersDirectory)
+        let pluginManifestPath = pluginDirectory.appending(component: "Plugin.swift")
+        try FileHandler.shared.touch(pluginManifestPath)
+
+        let tuistPath = AbsolutePath(ProcessInfo.processInfo.arguments.first!)
+
+        resourceLocator.projectDescriptionStub = { projectDescriptionPath }
+        manifestFilesLocator.locateProjectManifestsStub = manifests
+        manifestFilesLocator.locatePluginManifestsStub = [pluginManifestPath]
+        projectEditorMapper.mapStub = graph
+        generator.generateWorkspaceStub = { _ in
+            .test(xcworkspacePath: directory.appending(component: "Edit.xcworkspacepath"))
+        }
+
+        // When
+        let plugins = Plugins.test(projectDescriptionHelpers: [
+            .init(name: "LocalPlugin", path: pluginManifestPath, location: .local),
+        ])
+        try _ = subject.edit(at: directory, in: directory, plugins: plugins)
+
+        // Then
+        XCTAssertEqual(projectEditorMapper.mapArgs.count, 1)
+        let mapArgs = projectEditorMapper.mapArgs.first
+        XCTAssertEqual(mapArgs?.tuistPath, tuistPath)
+        XCTAssertEqual(mapArgs?.sourceRootPath, directory)
+        XCTAssertEqual(mapArgs?.projectDescriptionPath, projectDescriptionPath)
+        XCTAssertEqual(mapArgs?.editablePluginManifests.map(\.name), ["LocalPlugin"])
+        XCTAssertEqual(mapArgs?.editablePluginManifests.map(\.path), [pluginManifestPath].map(\.parentDirectory))
+        XCTAssertEqual(mapArgs?.pluginProjectDescriptionHelpersModule, [])
+    }
+
+    func test_edit_project_with_local_plugin_outside_editing_path() throws {
+        // Given
+        let rootPath = try temporaryPath()
+        let editingPath = rootPath.appending(component: "Editing")
+        let projectDescriptionPath = editingPath.appending(component: "ProjectDescription.framework")
+        let graph = ValueGraph.test(name: "Edit")
+
+        // Project
+        let manifests: [(Manifest, AbsolutePath)] = [(.project, editingPath.appending(component: "Project.swift"))]
+
+        // Local plugin
+        let pluginManifestPath = rootPath.appending(component: "Plugin.swift")
+
+        let tuistPath = AbsolutePath(ProcessInfo.processInfo.arguments.first!)
+
+        resourceLocator.projectDescriptionStub = { projectDescriptionPath }
+        manifestFilesLocator.locateProjectManifestsStub = manifests
+        manifestFilesLocator.locatePluginManifestsStub = [pluginManifestPath]
+        projectEditorMapper.mapStub = graph
+        generator.generateWorkspaceStub = { _ in
+            .test(xcworkspacePath: editingPath.appending(component: "Edit.xcworkspacepath"))
+        }
+
+        // When
+        let plugins = Plugins.test(projectDescriptionHelpers: [
+            .init(name: "LocalPlugin", path: pluginManifestPath, location: .local),
+        ])
+
+        try _ = subject.edit(at: editingPath, in: editingPath, plugins: plugins)
+
+        // Then
+        XCTAssertEqual(projectEditorMapper.mapArgs.count, 1)
+        let mapArgs = projectEditorMapper.mapArgs.first
+        XCTAssertEqual(mapArgs?.tuistPath, tuistPath)
+        XCTAssertEqual(mapArgs?.sourceRootPath, editingPath)
+        XCTAssertEqual(mapArgs?.projectDescriptionPath, projectDescriptionPath)
+        XCTAssertEqual(mapArgs?.editablePluginManifests.map(\.name), ["LocalPlugin"])
+        XCTAssertEqual(mapArgs?.editablePluginManifests.map(\.path), [pluginManifestPath].map(\.parentDirectory))
+        XCTAssertEqual(mapArgs?.pluginProjectDescriptionHelpersModule, [])
+    }
+
+    func test_edit_project_with_remote_plugin() throws {
+        // Given
+        let directory = try temporaryPath()
+        let projectDescriptionPath = directory.appending(component: "ProjectDescription.framework")
+        let graph = ValueGraph.test(name: "Edit")
+
+        // Project
+        let manifests: [(Manifest, AbsolutePath)] = [(.project, directory.appending(component: "Project.swift"))]
+        let tuistPath = AbsolutePath(ProcessInfo.processInfo.arguments.first!)
+
+        resourceLocator.projectDescriptionStub = { projectDescriptionPath }
+        manifestFilesLocator.locateProjectManifestsStub = manifests
+        manifestFilesLocator.locatePluginManifestsStub = []
+        projectEditorMapper.mapStub = graph
+        generator.generateWorkspaceStub = { _ in
+            .test(xcworkspacePath: directory.appending(component: "Edit.xcworkspacepath"))
+        }
+
+        projectDescriptionHelpersBuilder.buildPluginsStub = { _, _, plugins in
+            plugins.map { ProjectDescriptionHelpersModule(name: $0.name, path: $0.path) }
+        }
+
+        // When
+        let plugins = Plugins.test(projectDescriptionHelpers: [
+            .init(name: "RemotePlugin", path: AbsolutePath("/Some/Path/To/Plugin"), location: .remote),
+        ])
+        try _ = subject.edit(at: directory, in: directory, plugins: plugins)
+
+        // Then
+        XCTAssertEqual(projectEditorMapper.mapArgs.count, 1)
+        let mapArgs = projectEditorMapper.mapArgs.first
+        XCTAssertEqual(mapArgs?.tuistPath, tuistPath)
+        XCTAssertEqual(mapArgs?.sourceRootPath, directory)
+        XCTAssertEqual(mapArgs?.projectDescriptionPath, projectDescriptionPath)
+        XCTAssertEmpty(try XCTUnwrap(mapArgs?.editablePluginManifests))
+        XCTAssertEqual(
+            mapArgs?.pluginProjectDescriptionHelpersModule,
+            [ProjectDescriptionHelpersModule(name: "RemotePlugin", path: AbsolutePath("/Some/Path/To/Plugin"))]
+        )
     }
 }

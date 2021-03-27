@@ -22,56 +22,71 @@ final class CacheTreeShakingGraphMapperTests: TuistUnitTestCase {
 
     func test_map_removes_projects_when_all_its_targets_are_pruned() throws {
         // Given
-        let target = Target.test()
+        let target = Target.test(prune: true)
         let project = Project.test(targets: [target])
-        let targetNode = TargetNode.test(project: project, target: target, prune: true)
-        let graph = Graph.test(entryNodes: [targetNode],
-                               projects: [project],
-                               targets: [project.path: [targetNode]])
+
+        let graph = ValueGraph.test(
+            path: project.path,
+            projects: [project.path: project],
+            targets: [project.path: [target.name: target]]
+        )
+
+        let expectedGraph = ValueGraph.test(
+            path: project.path,
+            projects: [:],
+            targets: [:]
+        )
 
         // When
         let (gotGraph, gotSideEffects) = try subject.map(graph: graph)
 
         // Then
         XCTAssertEmpty(gotSideEffects)
-        XCTAssertEmpty(gotGraph.projects)
-        XCTAssertEmpty(gotGraph.targets.flatMap(\.value))
+        XCTAssertEqual(
+            gotGraph,
+            expectedGraph
+        )
     }
 
     func test_map_removes_pruned_targets_from_projects() throws {
         // Given
-        let firstTarget = Target.test(name: "first")
-        let secondTarget = Target.test(name: "second")
+        let firstTarget = Target.test(name: "first", prune: false)
+        let secondTarget = Target.test(name: "second", prune: true)
         let project = Project.test(targets: [firstTarget, secondTarget])
-        let firstTargetNode = TargetNode.test(project: project, target: firstTarget, prune: false)
-        let secondTargetNode = TargetNode.test(project: project, target: secondTarget, prune: true)
-        let graph = Graph.test(entryNodes: [firstTargetNode, secondTargetNode],
-                               projects: [project],
-                               targets: [project.path: [firstTargetNode, secondTargetNode]])
+
+        let graph = ValueGraph.test(
+            path: project.path,
+            projects: [project.path: project],
+            targets: [project.path: [firstTarget.name: firstTarget, secondTarget.name: secondTarget]],
+            dependencies: [:]
+        )
 
         // When
-        let (gotGraph, gotSideEffects) = try subject.map(graph: graph)
+        let (gotGraph, gotValueSideEffects) = try subject.map(graph: graph)
 
         // Then
-        XCTAssertEmpty(gotSideEffects)
+        XCTAssertEmpty(gotValueSideEffects)
         XCTAssertEqual(gotGraph.projects.count, 1)
-        let targets = gotGraph.targets.flatMap(\.value)
-        XCTAssertEqual(targets.count, 1)
-        XCTAssertEqual(targets.first, firstTargetNode)
+        let valueTargets = gotGraph.targets.flatMap(\.value)
+        XCTAssertEqual(valueTargets.count, 1)
+        XCTAssertEqual(valueTargets.first?.value, firstTarget)
     }
 
     func test_map_removes_project_schemes_with_whose_all_targets_have_been_removed() throws {
         // Given
         let path = AbsolutePath("/project")
-        let target = Target.test(name: "first")
+        let target = Target.test(name: "first", prune: true)
         let schemes: [Scheme] = [
             .test(buildAction: .test(targets: [.init(projectPath: path, name: target.name)])),
         ]
         let project = Project.test(path: path, targets: [target], schemes: schemes)
-        let targetNode = TargetNode.test(project: project, target: target, prune: true)
-        let graph = Graph.test(entryNodes: [targetNode],
-                               projects: [project],
-                               targets: [project.path: [targetNode]])
+
+        let graph = ValueGraph.test(
+            path: project.path,
+            projects: [project.path: project],
+            targets: [project.path: [target.name: target]],
+            dependencies: [:]
+        )
 
         // When
         let (gotGraph, gotSideEffects) = try subject.map(graph: graph)
@@ -79,29 +94,33 @@ final class CacheTreeShakingGraphMapperTests: TuistUnitTestCase {
         // Then
         XCTAssertEmpty(gotSideEffects)
         XCTAssertEqual(gotGraph.projects.count, 0)
-        let projectSchemes = gotGraph.projects.first?.schemes ?? []
-        XCTAssertEmpty(projectSchemes)
-        let targets = gotGraph.targets.flatMap(\.value)
-        XCTAssertEqual(targets.count, 0)
+        let valueProjectSchemes = gotGraph.projects.values.first?.schemes ?? []
+        XCTAssertEmpty(valueProjectSchemes)
+        let valueTargets = gotGraph.targets.flatMap(\.value)
+        XCTAssertEqual(valueTargets.count, 0)
     }
 
     func test_map_removes_the_workspace_projects_that_no_longer_exist() throws {
         // Given
         let path = AbsolutePath("/project")
         let removedProjectPath = AbsolutePath.root.appending(component: "Other")
-        let target = Target.test(name: "first")
+        let target = Target.test(name: "first", prune: true)
         let schemes: [Scheme] = [
             .test(buildAction: .test(targets: [.init(projectPath: path, name: target.name)])),
         ]
         let project = Project.test(path: path, targets: [target], schemes: schemes)
-        let targetNode = TargetNode.test(project: project, target: target, prune: true)
-        let workspace = Workspace.test(path: path,
-                                       projects: [project.path, removedProjectPath])
-        let graph = Graph.test(entryPath: path,
-                               entryNodes: [targetNode],
-                               workspace: workspace,
-                               projects: [project],
-                               targets: [project.path: [targetNode]])
+        let workspace = Workspace.test(
+            path: path,
+            projects: [project.path, removedProjectPath]
+        )
+
+        // Given
+        let graph = ValueGraph.test(
+            path: project.path,
+            projects: [project.path: project],
+            targets: [project.path: [target.name: target]],
+            dependencies: [:]
+        )
 
         // When
         let (gotGraph, _) = try subject.map(graph: graph)
@@ -114,26 +133,28 @@ final class CacheTreeShakingGraphMapperTests: TuistUnitTestCase {
         // Given
         let path = AbsolutePath("/project")
         let removedProjectPath = AbsolutePath.root.appending(component: "Other")
-        let target = Target.test(name: "first")
+        let target = Target.test(name: "first", prune: true)
         let schemes: [Scheme] = [
             .test(buildAction: .test(targets: [.init(projectPath: path, name: target.name)])),
         ]
         let project = Project.test(path: path, targets: [target], schemes: [])
-        let targetNode = TargetNode.test(project: project, target: target, prune: true)
-        let workspace = Workspace.test(path: path,
-                                       projects: [project.path, removedProjectPath],
-                                       schemes: schemes)
-        let graph = Graph.test(entryPath: path,
-                               entryNodes: [targetNode],
-                               workspace: workspace,
-                               projects: [project],
-                               targets: [project.path: [targetNode]])
+        let workspace = Workspace.test(
+            path: path,
+            projects: [project.path, removedProjectPath],
+            schemes: schemes
+        )
+
+        let graph = ValueGraph.test(
+            path: project.path,
+            projects: [project.path: project],
+            targets: [project.path: [target.name: target]],
+            dependencies: [:]
+        )
 
         // When
         let (gotGraph, _) = try subject.map(graph: graph)
 
         // Then
-        let projectSchemes = gotGraph.workspace.schemes
-        XCTAssertEmpty(projectSchemes)
+        XCTAssertEmpty(gotGraph.workspace.schemes)
     }
 }

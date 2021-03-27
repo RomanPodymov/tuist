@@ -4,8 +4,12 @@ import TSCBasic
 public struct Target: Equatable, Hashable, Comparable {
     // MARK: - Static
 
-    public static let validSourceExtensions: [String] = ["m", "swift", "mm", "cpp", "c", "d", "s", "intentdefinition", "xcmappingmodel", "metal", "mlmodel"]
-    public static let validFolderExtensions: [String] = ["framework", "bundle", "app", "xcassets", "appiconset", "scnassets"]
+    public static let validSourceExtensions: [String] = [
+        "m", "swift", "mm", "cpp", "c", "d", "s", "intentdefinition", "xcmappingmodel", "metal", "mlmodel",
+    ]
+    public static let validFolderExtensions: [String] = [
+        "framework", "bundle", "app", "xcassets", "appiconset", "scnassets",
+    ]
 
     // MARK: - Attributes
 
@@ -21,7 +25,7 @@ public struct Target: Equatable, Hashable, Comparable {
     public var infoPlist: InfoPlist?
     public var entitlements: AbsolutePath?
     public var settings: Settings?
-    public var dependencies: [Dependency]
+    public var dependencies: [TargetDependency]
     public var sources: [SourceFile]
     public var resources: [ResourceFileElement]
     public var copyFiles: [CopyFilesAction]
@@ -33,6 +37,7 @@ public struct Target: Equatable, Hashable, Comparable {
     public var filesGroup: ProjectGroup
     public var scripts: [TargetScript]
     public var playgrounds: [AbsolutePath]
+    public var prune: Bool
 
     // MARK: - Init
 
@@ -54,9 +59,10 @@ public struct Target: Equatable, Hashable, Comparable {
                 environment: [String: String] = [:],
                 launchArguments: [LaunchArgument] = [],
                 filesGroup: ProjectGroup,
-                dependencies: [Dependency] = [],
+                dependencies: [TargetDependency] = [],
                 scripts: [TargetScript] = [],
-                playgrounds: [AbsolutePath] = [])
+                playgrounds: [AbsolutePath] = [],
+                prune: Bool = false)
     {
         self.name = name
         self.product = product
@@ -79,6 +85,7 @@ public struct Target: Equatable, Hashable, Comparable {
         self.dependencies = dependencies
         self.scripts = scripts
         self.playgrounds = playgrounds
+        self.prune = prune
     }
 
     /// Target can be included in the link phase of other targets

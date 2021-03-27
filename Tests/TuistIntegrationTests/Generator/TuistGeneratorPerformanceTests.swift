@@ -31,21 +31,22 @@ final class TuistGeneratorPerformanceTests: TuistTestCase {
             do {
                 // Given
                 let subject = DescriptorGenerator()
-                let config = TestModelGenerator.WorkspaceConfig(projects: 50,
-                                                                testTargets: 5,
-                                                                frameworkTargets: 5,
-                                                                schemes: 10,
-                                                                sources: 200,
-                                                                resources: 100,
-                                                                headers: 100)
+                let config = TestModelGenerator.WorkspaceConfig(
+                    projects: 50,
+                    testTargets: 5,
+                    frameworkTargets: 5,
+                    schemes: 10,
+                    sources: 200,
+                    resources: 100,
+                    headers: 100
+                )
                 let temporaryPath = try self.temporaryPath()
                 let modelGenerator = TestModelGenerator(rootPath: temporaryPath, config: config)
                 let graph = try modelGenerator.generate()
 
                 // When
                 startMeasuring()
-                let valueGraph = ValueGraph(graph: graph)
-                let graphTraverser = ValueGraphTraverser(graph: valueGraph)
+                let graphTraverser = ValueGraphTraverser(graph: graph)
                 _ = try subject.generateWorkspace(graphTraverser: graphTraverser)
                 stopMeasuring()
 

@@ -66,8 +66,10 @@ public class Environment: Environmenting {
 
     /// Default public constructor.
     convenience init() {
-        self.init(directory: Environment.defaultDirectory,
-                  fileHandler: FileHandler.shared)
+        self.init(
+            directory: Environment.defaultDirectory,
+            fileHandler: FileHandler.shared
+        )
     }
 
     /// Default environment constroller constructor.
@@ -141,6 +143,7 @@ public class Environment: Environmenting {
         cacheDirectory.appending(component: "ProjectDescriptionHelpers")
     }
 
+    /// Returns the directory where the projects generated for automation tasks are generated to
     public var projectsCacheDirectory: AbsolutePath {
         cacheDirectory.appending(component: "Projects")
     }

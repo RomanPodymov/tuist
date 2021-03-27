@@ -20,6 +20,7 @@ final class TestServiceTests: TuistUnitTestCase {
     private var xcodebuildController: MockXcodeBuildController!
     private var buildGraphInspector: MockBuildGraphInspector!
     private var simulatorController: MockSimulatorController!
+    private var contentHasher: MockContentHasher!
     private var testsCacheTemporaryDirectory: TemporaryDirectory!
 
     override func setUpWithError() throws {
@@ -28,19 +29,24 @@ final class TestServiceTests: TuistUnitTestCase {
         xcodebuildController = .init()
         buildGraphInspector = .init()
         simulatorController = .init()
+        contentHasher = .init()
         testsCacheTemporaryDirectory = try TemporaryDirectory(removeTreeOnDeinit: true)
         testServiceGeneratorFactory = .init()
         testServiceGeneratorFactory.generatorStub = { _, _ in
             self.generator
         }
 
+        contentHasher.hashStub = { _ in
+            "hash"
+        }
+
         subject = TestService(
-            temporaryDirectory: try TemporaryDirectory(removeTreeOnDeinit: true),
             testsCacheTemporaryDirectory: testsCacheTemporaryDirectory,
             testServiceGeneratorFactory: testServiceGeneratorFactory,
             xcodebuildController: xcodebuildController,
             buildGraphInspector: buildGraphInspector,
-            simulatorController: simulatorController
+            simulatorController: simulatorController,
+            contentHasher: contentHasher
         )
     }
 
@@ -51,8 +57,33 @@ final class TestServiceTests: TuistUnitTestCase {
         simulatorController = nil
         testsCacheTemporaryDirectory = nil
         testServiceGeneratorFactory = nil
+        contentHasher = nil
         subject = nil
         super.tearDown()
+    }
+
+    func test_run_uses_project_directory() throws {
+        // Given
+        var automationPath: AbsolutePath?
+
+        testServiceGeneratorFactory.generatorStub = { gotAutomationPath, _ in
+            automationPath = gotAutomationPath
+            return self.generator
+        }
+        contentHasher.hashStub = {
+            "\($0.replacingOccurrences(of: "/", with: ""))-hash"
+        }
+
+        // When
+        try? subject.testRun(
+            path: AbsolutePath("/test")
+        )
+
+        // Then
+        XCTAssertEqual(
+            automationPath,
+            environment.projectsCacheDirectory.appending(component: "test-hash")
+        )
     }
 
     func test_run_generates_project() throws {
@@ -63,7 +94,7 @@ final class TestServiceTests: TuistUnitTestCase {
         generator.generateWithGraphStub = {
             generatedPath = $0
             projectOnly = $1
-            return ($0, Graph.test())
+            return ($0, ValueGraph.test())
         }
 
         // When
@@ -85,14 +116,14 @@ final class TestServiceTests: TuistUnitTestCase {
             ]
         }
         buildGraphInspector.testableTargetStub = { scheme, _ in
-            TargetNode.test(
+            ValueGraphTarget.test(
                 target: Target.test(
                     name: scheme.name
                 )
             )
         }
         generator.generateWithGraphStub = { path, _ in
-            (path, Graph.test())
+            (path, ValueGraph.test())
         }
         var testedSchemes: [String] = []
         xcodebuildController.testStub = { _, scheme, _, _, _, _ in
@@ -124,7 +155,7 @@ final class TestServiceTests: TuistUnitTestCase {
             ]
         }
         generator.generateWithGraphStub = { path, _ in
-            (path, Graph.test())
+            (path, ValueGraph.test())
         }
         var testedSchemes: [String] = []
         xcodebuildController.testStub = { _, scheme, _, _, _, _ in
@@ -167,7 +198,7 @@ final class TestServiceTests: TuistUnitTestCase {
             ]
         }
         generator.generateWithGraphStub = { path, _ in
-            (path, Graph.test())
+            (path, ValueGraph.test())
         }
         var testedSchemes: [String] = []
         xcodebuildController.testStub = { _, scheme, _, _, _, _ in
@@ -202,7 +233,7 @@ final class TestServiceTests: TuistUnitTestCase {
             []
         }
         generator.generateWithGraphStub = { path, _ in
-            (path, Graph.test())
+            (path, ValueGraph.test())
         }
         var testedSchemes: [String] = []
         xcodebuildController.testStub = { _, scheme, _, _, _, _ in

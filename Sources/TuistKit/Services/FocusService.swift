@@ -18,45 +18,52 @@ final class FocusServiceProjectGeneratorFactory: FocusServiceProjectGeneratorFac
 
     func generator(sources: Set<String>, xcframeworks: Bool, cacheProfile: TuistGraph.Cache.Profile, ignoreCache: Bool) -> Generating {
         let contentHasher = CacheContentHasher()
-        let graphMapperProvider = FocusGraphMapperProvider(contentHasher: contentHasher,
-                                                           cache: !ignoreCache,
-                                                           cacheSources: sources,
-                                                           cacheProfile: cacheProfile,
-                                                           cacheOutputType: xcframeworks ? .xcframework : .framework)
+        let graphMapperProvider = FocusGraphMapperProvider(
+            contentHasher: contentHasher,
+            cache: !ignoreCache,
+            cacheSources: sources,
+            cacheProfile: cacheProfile,
+            cacheOutputType: xcframeworks ? .xcframework : .framework
+        )
         let projectMapperProvider = ProjectMapperProvider(contentHasher: contentHasher)
-        return Generator(projectMapperProvider: projectMapperProvider,
-                         graphMapperProvider: graphMapperProvider,
-                         workspaceMapperProvider: WorkspaceMapperProvider(contentHasher: contentHasher),
-                         manifestLoaderFactory: ManifestLoaderFactory())
+        return Generator(
+            projectMapperProvider: projectMapperProvider,
+            graphMapperProvider: graphMapperProvider,
+            workspaceMapperProvider: WorkspaceMapperProvider(contentHasher: contentHasher),
+            manifestLoaderFactory: ManifestLoaderFactory()
+        )
     }
 }
 
 final class FocusService {
     private let opener: Opening
     private let projectGeneratorFactory: FocusServiceProjectGeneratorFactorying
-    private let generatorModelLoader: GeneratorModelLoading
+    private let configLoader: ConfigLoading
 
-    init(generatorModelLoader: GeneratorModelLoading = GeneratorModelLoader(),
-         opener: Opening = Opener(),
-         projectGeneratorFactory: FocusServiceProjectGeneratorFactorying = FocusServiceProjectGeneratorFactory())
-    {
-        self.generatorModelLoader = generatorModelLoader
+    init(
+        configLoader: ConfigLoading = ConfigLoader(manifestLoader: ManifestLoader()),
+        opener: Opening = Opener(),
+        projectGeneratorFactory: FocusServiceProjectGeneratorFactorying = FocusServiceProjectGeneratorFactory()
+    ) {
+        self.configLoader = configLoader
         self.opener = opener
         self.projectGeneratorFactory = projectGeneratorFactory
     }
 
     func run(path: String?, sources: Set<String>, noOpen: Bool, xcframeworks: Bool, profile: String?, ignoreCache: Bool) throws {
         let path = self.path(path)
-        let config = try generatorModelLoader.loadConfig(at: path)
+        let config = try configLoader.loadConfig(path: path)
 
         let cacheProfile = ignoreCache
             ? CacheProfileResolver.defaultCacheProfileFromTuist
             : try CacheProfileResolver().resolveCacheProfile(named: profile, from: config)
 
-        let generator = projectGeneratorFactory.generator(sources: sources,
-                                                          xcframeworks: xcframeworks,
-                                                          cacheProfile: cacheProfile,
-                                                          ignoreCache: ignoreCache)
+        let generator = projectGeneratorFactory.generator(
+            sources: sources,
+            xcframeworks: xcframeworks,
+            cacheProfile: cacheProfile,
+            ignoreCache: ignoreCache
+        )
         let workspacePath = try generator.generate(path: path, projectOnly: false)
         if !noOpen {
             try opener.open(path: workspacePath)

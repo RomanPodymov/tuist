@@ -2,30 +2,35 @@ import DOT
 import Foundation
 import GraphViz
 import TSCBasic
+import TuistPlugin
 import TuistSupport
 import XcodeProj
 import XCTest
 
+@testable import TuistCoreTesting
 @testable import TuistKit
 @testable import TuistLoaderTesting
 @testable import TuistSupportTesting
 
 final class GraphServiceTests: TuistUnitTestCase {
+    var manifestGraphLoader: MockManifestGraphLoader!
+    var graphVizMapper: MockGraphToGraphVizMapper!
     var subject: GraphService!
-    var graphVizGenerator: MockGraphVizGenerator!
-    var manifestLoader: MockManifestLoader!
 
     override func setUp() {
         super.setUp()
-        graphVizGenerator = MockGraphVizGenerator()
-        manifestLoader = MockManifestLoader()
-        subject = GraphService(graphVizGenerator: graphVizGenerator,
-                               manifestLoader: manifestLoader)
+        graphVizMapper = MockGraphToGraphVizMapper()
+        manifestGraphLoader = MockManifestGraphLoader()
+
+        subject = GraphService(
+            graphVizGenerator: graphVizMapper,
+            manifestGraphLoader: manifestGraphLoader
+        )
     }
 
     override func tearDown() {
-        graphVizGenerator = nil
-        manifestLoader = nil
+        graphVizMapper = nil
+        manifestGraphLoader = nil
         subject = nil
         super.tearDown()
     }
@@ -38,23 +43,18 @@ final class GraphServiceTests: TuistUnitTestCase {
 
         try FileHandler.shared.touch(graphPath)
         try FileHandler.shared.touch(projectManifestPath)
-
-        manifestLoader.manifestsAtStub = {
-            if $0 == temporaryPath { return Set([.project]) }
-            else { return Set([]) }
-        }
-
-        let graph = GraphViz.Graph()
-        graphVizGenerator.generateProjectStub = graph
+        graphVizMapper.stubMap = Graph()
 
         // When
-        try subject.run(format: .dot,
-                        layoutAlgorithm: .dot,
-                        skipTestTargets: false,
-                        skipExternalDependencies: false,
-                        targetsToFilter: [],
-                        path: temporaryPath,
-                        outputPath: temporaryPath)
+        try subject.run(
+            format: .dot,
+            layoutAlgorithm: .dot,
+            skipTestTargets: false,
+            skipExternalDependencies: false,
+            targetsToFilter: [],
+            path: temporaryPath,
+            outputPath: temporaryPath
+        )
         let got = try FileHandler.shared.readTextFile(graphPath)
         let expected = "graph { }"
         // Then

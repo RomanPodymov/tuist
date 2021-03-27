@@ -6,7 +6,7 @@ import TuistGraph
 import TuistSupport
 
 extension TuistGraph.Config {
-    /// Maps a ProjectDescription.Config instance into a TuistCore.Config model.
+    /// Maps a ProjectDescription.Config instance into a TuistGraph.Config model.
     /// - Parameters:
     ///   - manifest: Manifest representation of Tuist config.
     ///   - path: The path of the config file.
@@ -26,17 +26,19 @@ extension TuistGraph.Config {
             cache = TuistGraph.Cache.from(manifest: manifestCache)
         }
 
-        return TuistGraph.Config(compatibleXcodeVersions: compatibleXcodeVersions,
-                                 cloud: cloud,
-                                 cache: cache,
-                                 plugins: plugins,
-                                 generationOptions: generationOptions,
-                                 path: path)
+        return TuistGraph.Config(
+            compatibleXcodeVersions: compatibleXcodeVersions,
+            cloud: cloud,
+            cache: cache,
+            plugins: plugins,
+            generationOptions: generationOptions,
+            path: path
+        )
     }
 }
 
 extension TuistGraph.Config.GenerationOption {
-    /// Maps a ProjectDescription.Config.GenerationOptions instance into a TuistCore.Config.GenerationOptions model.
+    /// Maps a ProjectDescription.Config.GenerationOptions instance into a TuistGraph.Config.GenerationOptions model.
     /// - Parameters:
     ///   - manifest: Manifest representation of Tuist config generation options
     ///   - generatorPaths: Generator paths.
@@ -56,6 +58,8 @@ extension TuistGraph.Config.GenerationOption {
             return .disableShowEnvironmentVarsInScriptPhases
         case .enableCodeCoverage:
             return .enableCodeCoverage
+        case .disablePackageVersionLocking:
+            return .disablePackageVersionLocking
         }
     }
 }

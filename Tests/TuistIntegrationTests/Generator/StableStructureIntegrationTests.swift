@@ -24,17 +24,18 @@ final class StableXcodeProjIntegrationTests: TuistTestCase {
         try (0 ..< 10).forEach { _ in
             let subject = DescriptorGenerator()
             let writer = XcodeProjWriter()
-            let config = TestModelGenerator.WorkspaceConfig(projects: 4,
-                                                            testTargets: 10,
-                                                            frameworkTargets: 10,
-                                                            schemes: 10,
-                                                            sources: 200,
-                                                            resources: 100,
-                                                            headers: 100)
+            let config = TestModelGenerator.WorkspaceConfig(
+                projects: 4,
+                testTargets: 10,
+                frameworkTargets: 10,
+                schemes: 10,
+                sources: 200,
+                resources: 100,
+                headers: 100
+            )
             let modelGenerator = TestModelGenerator(rootPath: temporaryPath, config: config)
             let graph = try modelGenerator.generate()
-            let valueGraph = ValueGraph(graph: graph)
-            let graphTraverser = ValueGraphTraverser(graph: valueGraph)
+            let graphTraverser = ValueGraphTraverser(graph: graph)
 
             let workspaceDescriptor = try subject.generateWorkspace(graphTraverser: graphTraverser)
 

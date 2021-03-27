@@ -43,9 +43,7 @@ public final class CacheFrameworkBuilder: CacheArtifactBuilding {
     /// Developer's environment.
     private let developerEnvironment: DeveloperEnvironmenting
 
-    /// a map between the path of a project or workspace, and the path to derived data
-    /// using the hash calculated by Xcode.
-    private var projectPathHashes: [String: AbsolutePath] = [:]
+    private let derivedDataLocator: DerivedDataLocating
 
     // MARK: - Init
 
@@ -54,13 +52,16 @@ public final class CacheFrameworkBuilder: CacheArtifactBuilding {
     ///   - xcodeBuildController: Xcode build controller.
     ///   - simulatorController: Simulator controller.
     ///   - developerEnvironment: Developer environment.
-    public init(xcodeBuildController: XcodeBuildControlling,
-                simulatorController: SimulatorControlling = SimulatorController(),
-                developerEnvironment: DeveloperEnvironmenting = DeveloperEnvironment.shared)
-    {
+    public init(
+        xcodeBuildController: XcodeBuildControlling,
+        simulatorController: SimulatorControlling = SimulatorController(),
+        developerEnvironment: DeveloperEnvironmenting = DeveloperEnvironment.shared,
+        derivedDataLocator: DerivedDataLocating = DerivedDataLocator()
+    ) {
         self.xcodeBuildController = xcodeBuildController
         self.simulatorController = simulatorController
         self.developerEnvironment = developerEnvironment
+        self.derivedDataLocator = derivedDataLocator
     }
 
     // MARK: - ArtifactBuilding
@@ -73,10 +74,12 @@ public final class CacheFrameworkBuilder: CacheArtifactBuilding {
                       configuration: String,
                       into outputDirectory: AbsolutePath) throws
     {
-        try build(.workspace(workspacePath),
-                  target: target,
-                  configuration: configuration,
-                  into: outputDirectory)
+        try build(
+            .workspace(workspacePath),
+            target: target,
+            configuration: configuration,
+            into: outputDirectory
+        )
     }
 
     public func build(projectPath: AbsolutePath,
@@ -84,10 +87,12 @@ public final class CacheFrameworkBuilder: CacheArtifactBuilding {
                       configuration: String,
                       into outputDirectory: AbsolutePath) throws
     {
-        try build(.project(projectPath),
-                  target: target,
-                  configuration: configuration,
-                  into: outputDirectory)
+        try build(
+            .project(projectPath),
+            target: target,
+            configuration: configuration,
+            into: outputDirectory
+        )
     }
 
     // MARK: - Fileprivate
@@ -106,9 +111,11 @@ public final class CacheFrameworkBuilder: CacheArtifactBuilding {
 
         let sdk = self.sdk(target: target)
 
-        let arguments = try self.arguments(target: target,
-                                           sdk: sdk,
-                                           configuration: configuration)
+        let arguments = try self.arguments(
+            target: target,
+            sdk: sdk,
+            configuration: configuration
+        )
 
         try xcodebuild(
             projectTarget: projectTarget,
@@ -117,14 +124,18 @@ public final class CacheFrameworkBuilder: CacheArtifactBuilding {
             arguments: arguments
         )
 
-        let buildDirectory = try self.buildDirectory(for: projectTarget,
-                                                     target: target,
-                                                     configuration: configuration,
-                                                     sdk: sdk)
+        let buildDirectory = try self.buildDirectory(
+            for: projectTarget,
+            target: target,
+            configuration: configuration,
+            sdk: sdk
+        )
 
-        try exportFrameworksAndDSYMs(from: buildDirectory,
-                                     into: outputDirectory,
-                                     target: target)
+        try exportFrameworksAndDSYMs(
+            from: buildDirectory,
+            into: outputDirectory,
+            target: target
+        )
     }
 
     fileprivate func buildDirectory(for projectTarget: XcodeBuildTarget,
@@ -135,14 +146,8 @@ public final class CacheFrameworkBuilder: CacheArtifactBuilding {
         let projectPath = projectTarget.path
         let pathString = projectPath.pathString
 
-        if let existing = projectPathHashes[pathString] {
-            return existing
-        }
-
-        let derivedDataPath = developerEnvironment.derivedDataDirectory
-        let hash = try XcodeProjectPathHasher.hashString(for: pathString)
+        let derivedDataPath = try derivedDataLocator.locate(for: projectPath)
         var buildDirectory = derivedDataPath
-            .appending(component: "\(projectTarget.path.basenameWithoutExt)-\(hash)")
             .appending(component: "Build")
             .appending(component: "Products")
         if target.platform == .macOS {
@@ -150,7 +155,6 @@ public final class CacheFrameworkBuilder: CacheArtifactBuilding {
         } else {
             buildDirectory = buildDirectory.appending(component: "\(configuration)-\(sdk)")
         }
-        projectPathHashes[pathString] = buildDirectory
 
         return buildDirectory
     }
@@ -203,17 +207,19 @@ public final class CacheFrameworkBuilder: CacheArtifactBuilding {
                                 target: Target,
                                 arguments: [XcodeBuildArgument]) throws
     {
-        _ = try xcodeBuildController.build(projectTarget,
-                                           scheme: scheme,
-                                           clean: false,
-                                           arguments: arguments)
-            .printFormattedOutput()
-            .do(onSubscribed: {
-                logger.notice("Building \(target.name) as .framework...", metadata: .subsection)
-            })
-            .ignoreElements()
-            .toBlocking()
-            .last()
+        _ = try xcodeBuildController.build(
+            projectTarget,
+            scheme: scheme,
+            clean: false,
+            arguments: arguments
+        )
+        .printFormattedOutput()
+        .do(onSubscribed: {
+            logger.notice("Building \(target.name) as .framework...", metadata: .subsection)
+        })
+        .ignoreElements()
+        .toBlocking()
+        .last()
     }
 
     fileprivate func exportFrameworksAndDSYMs(from buildDirectory: AbsolutePath,

@@ -10,6 +10,7 @@ import XCTest
 @testable import TuistCoreTesting
 @testable import TuistKit
 @testable import TuistLoaderTesting
+@testable import TuistPluginTesting
 @testable import TuistScaffoldTesting
 @testable import TuistSupportTesting
 
@@ -18,15 +19,23 @@ final class ScaffoldServiceTests: TuistUnitTestCase {
     var templateLoader: MockTemplateLoader!
     var templatesDirectoryLocator: MockTemplatesDirectoryLocator!
     var templateGenerator: MockTemplateGenerator!
+    var configLoader: MockConfigLoader!
+    var pluginService: MockPluginService!
 
     override func setUp() {
         super.setUp()
         templateLoader = MockTemplateLoader()
         templatesDirectoryLocator = MockTemplatesDirectoryLocator()
         templateGenerator = MockTemplateGenerator()
-        subject = ScaffoldService(templateLoader: templateLoader,
-                                  templatesDirectoryLocator: templatesDirectoryLocator,
-                                  templateGenerator: templateGenerator)
+        configLoader = MockConfigLoader()
+        pluginService = MockPluginService()
+        subject = ScaffoldService(
+            templateLoader: templateLoader,
+            templatesDirectoryLocator: templatesDirectoryLocator,
+            templateGenerator: templateGenerator,
+            configLoader: configLoader,
+            pluginService: pluginService
+        )
     }
 
     override func tearDown() {
@@ -40,11 +49,13 @@ final class ScaffoldServiceTests: TuistUnitTestCase {
     func test_load_template_options() throws {
         // Given
         templateLoader.loadTemplateStub = { _ in
-            Template(description: "test",
-                     attributes: [
-                         .required("required"),
-                         .optional("optional", default: ""),
-                     ])
+            Template(
+                description: "test",
+                attributes: [
+                    .required("required"),
+                    .optional("optional", default: ""),
+                ]
+            )
         }
 
         templatesDirectoryLocator.templateDirectoriesStub = { _ in
@@ -54,8 +65,44 @@ final class ScaffoldServiceTests: TuistUnitTestCase {
         let expectedOptions: (required: [String], optional: [String]) = (required: ["required"], optional: ["optional"])
 
         // When
-        let options = try subject.loadTemplateOptions(templateName: "template",
-                                                      path: nil)
+        let options = try subject.loadTemplateOptions(
+            templateName: "template",
+            path: nil
+        )
+
+        // Then
+        XCTAssertEqual(options.required, expectedOptions.required)
+        XCTAssertEqual(options.optional, expectedOptions.optional)
+    }
+
+    func test_load_template_plugin_options() throws {
+        // Given
+        templateLoader.loadTemplateStub = { _ in
+            Template(
+                description: "test",
+                attributes: [
+                    .required("required"),
+                    .optional("optional", default: ""),
+                ]
+            )
+        }
+
+        let expectedOptions: (required: [String], optional: [String]) = (required: ["required"], optional: ["optional"])
+        let pluginTemplatePath = try temporaryPath().appending(component: "PluginTemplate")
+
+        pluginService.loadPluginsStub = { _ in
+            Plugins.test(templatePaths: [pluginTemplatePath])
+        }
+
+        templatesDirectoryLocator.templatePluginDirectoriesStub = { _ in
+            [pluginTemplatePath]
+        }
+
+        // When
+        let options = try subject.loadTemplateOptions(
+            templateName: "PluginTemplate",
+            path: nil
+        )
 
         // Then
         XCTAssertEqual(options.required, expectedOptions.required)
@@ -64,8 +111,10 @@ final class ScaffoldServiceTests: TuistUnitTestCase {
 
     func test_fails_when_template_not_found() throws {
         let templateName = "template"
-        XCTAssertThrowsSpecific(try subject.testRun(templateName: templateName),
-                                ScaffoldServiceError.templateNotFound(templateName))
+        XCTAssertThrowsSpecific(
+            try subject.testRun(templateName: templateName),
+            ScaffoldServiceError.templateNotFound(templateName, searchPaths: [])
+        )
     }
 
     func test_fails_when_required_attribute_not_provided() throws {
@@ -79,8 +128,10 @@ final class ScaffoldServiceTests: TuistUnitTestCase {
         }
 
         // Then
-        XCTAssertThrowsSpecific(try subject.testRun(),
-                                ScaffoldServiceError.attributeNotProvided("required"))
+        XCTAssertThrowsSpecific(
+            try subject.testRun(),
+            ScaffoldServiceError.attributeNotProvided("required")
+        )
     }
 
     func test_optional_attribute_is_taken_from_template() throws {
@@ -102,8 +153,10 @@ final class ScaffoldServiceTests: TuistUnitTestCase {
         try subject.testRun()
 
         // Then
-        XCTAssertEqual(["optional": "optionalValue"],
-                       generateAttributes)
+        XCTAssertEqual(
+            ["optional": "optionalValue"],
+            generateAttributes
+        )
     }
 
     func test_attributes_are_passed_to_generator() throws {
@@ -123,13 +176,17 @@ final class ScaffoldServiceTests: TuistUnitTestCase {
         }
 
         // When
-        try subject.testRun(requiredTemplateOptions: ["required": "requiredValue"],
-                            optionalTemplateOptions: ["optional": "optionalValue"])
+        try subject.testRun(
+            requiredTemplateOptions: ["required": "requiredValue"],
+            optionalTemplateOptions: ["optional": "optionalValue"]
+        )
 
         // Then
-        XCTAssertEqual(["optional": "optionalValue",
-                        "required": "requiredValue"],
-                       generateAttributes)
+        XCTAssertEqual(
+            ["optional": "optionalValue",
+             "required": "requiredValue"],
+            generateAttributes
+        )
     }
 }
 
@@ -139,9 +196,11 @@ extension ScaffoldService {
                  requiredTemplateOptions: [String: String] = [:],
                  optionalTemplateOptions: [String: String] = [:]) throws
     {
-        try run(path: path,
-                templateName: templateName,
-                requiredTemplateOptions: requiredTemplateOptions,
-                optionalTemplateOptions: optionalTemplateOptions)
+        try run(
+            path: path,
+            templateName: templateName,
+            requiredTemplateOptions: requiredTemplateOptions,
+            optionalTemplateOptions: optionalTemplateOptions
+        )
     }
 }

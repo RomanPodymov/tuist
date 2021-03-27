@@ -1,5 +1,5 @@
-inherit_from:
-  - http://shopify.github.io/ruby-style-guide/rubocop.yml
+inherit_gem:
+  rubocop-shopify: rubocop.yml
 require:
   - rubocop-rake
   - rubocop-minitest
@@ -15,17 +15,9 @@ AllCops:
   TargetRubyVersion: 2.5
   DisplayCopNames: true
   DisplayStyleGuide: true
+  Include:
+    - Gemfile
+    - Rakefile
+    - projects/fourier/**/*.rb
   Exclude:
-    - features/**/*
-    - fixtures/**/*
-    - .build/**/*
-    - .vscode/**/*
-    - assets/**/*
-    - build/**/*
-    - Carthage/**/*
-    - Sources/**/*
-    - Tests/**/*
-    - .github/**/*
-    - website/**/*
-    - next/**/*
     - vendor/**/*

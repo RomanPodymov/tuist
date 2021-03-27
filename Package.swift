@@ -20,11 +20,15 @@ let package = Package(
     products: [
         .executable(name: "tuist", targets: ["tuist"]),
         .executable(name: "tuistenv", targets: ["tuistenv"]),
-        .library(name: "ProjectDescription",
-                 type: .dynamic,
-                 targets: ["ProjectDescription"]),
-        .library(name: "TuistGraph",
-                 targets: ["TuistGraph"]),
+        .library(
+            name: "ProjectDescription",
+            type: .dynamic,
+            targets: ["ProjectDescription"]
+        ),
+        .library(
+            name: "TuistGraph",
+            targets: ["TuistGraph"]
+        ),
         /// TuistGenerator
         ///
         /// A high level Xcode generator library
@@ -36,27 +40,29 @@ let package = Package(
         /// Note: This library should be treated as **unstable** as
         ///       it is still under development and may include breaking
         ///       changes in future releases.
-        .library(name: "TuistGenerator",
-                 targets: ["TuistGenerator"]),
+        .library(
+            name: "TuistGenerator",
+            targets: ["TuistGenerator"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/tuist/XcodeProj.git", .upToNextMajor(from: "7.17.0")),
         .package(name: "Signals", url: "https://github.com/tuist/BlueSignals.git", .upToNextMajor(from: "1.0.21")),
         .package(url: "https://github.com/ReactiveX/RxSwift.git", .upToNextMajor(from: "5.1.1")),
         .package(url: "https://github.com/rnine/Checksum.git", .upToNextMajor(from: "1.0.2")),
-        .package(url: "https://github.com/apple/swift-log.git", .upToNextMajor(from: "1.4.0")),
-        .package(url: "https://github.com/krzyzanowskim/CryptoSwift.git", .upToNextMajor(from: "1.3.3")),
+        .package(url: "https://github.com/apple/swift-log.git", .upToNextMajor(from: "1.4.2")),
+        .package(url: "https://github.com/krzyzanowskim/CryptoSwift.git", .upToNextMajor(from: "1.3.8")),
         .package(url: "https://github.com/stencilproject/Stencil.git", .upToNextMajor(from: "0.14.0")),
-        .package(url: "https://github.com/kishikawakatsumi/KeychainAccess.git", .upToNextMajor(from: "4.1.0")),
+        .package(url: "https://github.com/kishikawakatsumi/KeychainAccess.git", .upToNextMajor(from: "4.2.2")),
         .package(name: "Swifter", url: "https://github.com/httpswift/swifter.git", .upToNextMajor(from: "1.5.0")),
-        .package(url: "https://github.com/apple/swift-tools-support-core.git", .upToNextMinor(from: "0.1.12")),
-        .package(url: "https://github.com/apple/swift-argument-parser.git", .upToNextMajor(from: "0.3.1")),
+        .package(url: "https://github.com/apple/swift-tools-support-core.git", .upToNextMinor(from: "0.2.0")),
+        .package(url: "https://github.com/apple/swift-argument-parser.git", .upToNextMajor(from: "0.4.1")),
         .package(url: "https://github.com/marmelroy/Zip.git", .upToNextMinor(from: "2.1.1")),
         .package(url: "https://github.com/tuist/GraphViz.git", .branch("tuist")),
         .package(url: "https://github.com/fortmarek/SwiftGen", .revision("ef8d6b186a03622cec8d228b18f0e2b3bb20b81c")),
         .package(url: "https://github.com/fortmarek/StencilSwiftKit.git", .branch("stable")),
-        .package(url: "https://github.com/FabrizioBrancati/Queuer.git", .upToNextMajor(from: "2.0.0")),
-        .package(url: "https://github.com/CombineCommunity/CombineExt.git", .upToNextMajor(from: "1.2.0")),
+        .package(url: "https://github.com/FabrizioBrancati/Queuer.git", .upToNextMajor(from: "2.1.1")),
+        .package(url: "https://github.com/CombineCommunity/CombineExt.git", .upToNextMajor(from: "1.3.0")),
     ],
     targets: [
         .target(
@@ -173,6 +179,8 @@ let package = Package(
                 "TuistDocTesting",
                 "TuistAsyncQueueTesting",
                 "TuistGraphTesting",
+                "TuistPlugin",
+                "TuistPluginTesting",
             ]
         ),
         .testTarget(
@@ -720,6 +728,15 @@ let package = Package(
                 "TuistGraph",
                 "TuistLoader",
                 "TuistSupport",
+                "TuistScaffold",
+                swiftToolsSupportDependency,
+            ]
+        ),
+        .target(
+            name: "TuistPluginTesting",
+            dependencies: [
+                "TuistGraph",
+                "TuistPlugin",
                 swiftToolsSupportDependency,
             ]
         ),

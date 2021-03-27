@@ -16,12 +16,21 @@ final class CacheGraphLinterTests: TuistUnitTestCase {
 
     func test_lint() {
         // Given
+        let project = Project.test()
         let target = Target.test(actions: [
             .init(name: "test", order: .post, script: .embedded("echo 'Hello World'")),
         ])
-        let targetNode = TargetNode.test(target: target)
-        let graph = Graph.test(entryNodes: [targetNode],
-                               targets: [targetNode.path: [targetNode]])
+        let graphTarget = ValueGraphTarget.test(
+            path: project.path,
+            target: target,
+            project: project
+        )
+        let graph = ValueGraph.test(
+            projects: [project.path: project],
+            targets: [
+                graphTarget.path: [graphTarget.target.name: graphTarget.target],
+            ]
+        )
 
         // When
         subject.lint(graph: graph)

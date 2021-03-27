@@ -50,6 +50,8 @@ public protocol FileHandling: AnyObject {
     func readFile(_ at: AbsolutePath) throws -> Data
     func readTextFile(_ at: AbsolutePath) throws -> String
     func readPlistFile<T: Decodable>(_ at: AbsolutePath) throws -> T
+    /// Determine temporary directory either default for user or specified by ENV variable
+    func determineTemporaryDirectory() throws -> AbsolutePath
     func temporaryDirectory() throws -> AbsolutePath
     func inTemporaryDirectory(_ closure: (AbsolutePath) throws -> Void) throws
     func inTemporaryDirectory(removeOnCompletion: Bool, _ closure: (AbsolutePath) throws -> Void) throws
@@ -103,10 +105,12 @@ public class FileHandler: FileHandling {
         // - https://developer.apple.com/documentation/foundation/filemanager/2293212-replaceitemat
         // - https://developer.apple.com/documentation/foundation/filemanager/1407693-url
         // - https://openradar.appspot.com/50553219
-        let rootTempDir = try fileManager.url(for: .itemReplacementDirectory,
-                                              in: .userDomainMask,
-                                              appropriateFor: to.url,
-                                              create: true)
+        let rootTempDir = try fileManager.url(
+            for: .itemReplacementDirectory,
+            in: .userDomainMask,
+            appropriateFor: to.url,
+            create: true
+        )
         let tempUrl = rootTempDir.appendingPathComponent("temp")
         defer { try? fileManager.removeItem(at: rootTempDir) }
         try fileManager.copyItem(at: with.url, to: tempUrl)
@@ -116,6 +120,10 @@ public class FileHandler: FileHandling {
     public func temporaryDirectory() throws -> AbsolutePath {
         let directory = try TemporaryDirectory(removeTreeOnDeinit: false)
         return directory.path
+    }
+
+    public func determineTemporaryDirectory() throws -> AbsolutePath {
+        try determineTempDirectory()
     }
 
     public func inTemporaryDirectory<Result>(_ closure: (AbsolutePath) throws -> Result) throws -> Result {
@@ -207,9 +215,11 @@ public class FileHandler: FileHandling {
 
     public func createFolder(_ path: AbsolutePath) throws {
         logger.debug("Creating folder at path \(path)")
-        try fileManager.createDirectory(at: path.url,
-                                        withIntermediateDirectories: true,
-                                        attributes: nil)
+        try fileManager.createDirectory(
+            at: path.url,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
     }
 
     public func delete(_ path: AbsolutePath) throws {
@@ -221,9 +231,11 @@ public class FileHandler: FileHandling {
 
     public func touch(_ path: AbsolutePath) throws {
         logger.debug("Touching \(path)")
-        try fileManager.createDirectory(at: path.removingLastComponent().url,
-                                        withIntermediateDirectories: true,
-                                        attributes: nil)
+        try fileManager.createDirectory(
+            at: path.removingLastComponent().url,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
         try Data().write(to: path.url)
     }
 
@@ -264,7 +276,9 @@ public class FileHandler: FileHandling {
 
         _ = digestData.withUnsafeMutableBytes { digestBytes -> UInt8 in
             data.withUnsafeBytes { messageBytes -> UInt8 in
-                if let messageBytesBaseAddress = messageBytes.baseAddress, let digestBytesBlindMemory = digestBytes.bindMemory(to: UInt8.self).baseAddress {
+                if let messageBytesBaseAddress = messageBytes.baseAddress,
+                    let digestBytesBlindMemory = digestBytes.bindMemory(to: UInt8.self).baseAddress
+                {
                     let messageLength = CC_LONG(data.count)
                     CC_MD5(messageBytesBaseAddress, messageLength, digestBytesBlindMemory)
                 }

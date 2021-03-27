@@ -1,6 +1,7 @@
 import Foundation
 import TSCBasic
 import TuistCore
+import TuistGraph
 import XCTest
 
 @testable import TuistCache
@@ -9,12 +10,12 @@ import XCTest
 final class MockCacheGraphMutator: CacheGraphMutating {
     var invokedMap = false
     var invokedMapCount = 0
-    var invokedMapParameters: (graph: Graph, precompiledFrameworks: [TargetNode: AbsolutePath], sources: Set<String>)?
-    var invokedMapParametersList = [(graph: Graph, precompiledFrameworks: [TargetNode: AbsolutePath], sources: Set<String>)]()
+    var invokedMapParameters: (graph: ValueGraph, precompiledFrameworks: [ValueGraphTarget: AbsolutePath], sources: Set<String>)?
+    var invokedMapParametersList = [(graph: ValueGraph, precompiledFrameworks: [ValueGraphTarget: AbsolutePath], sources: Set<String>)]()
     var stubbedMapError: Error?
-    var stubbedMapResult: Graph!
+    var stubbedMapResult: ValueGraph!
 
-    func map(graph: Graph, precompiledFrameworks: [TargetNode: AbsolutePath], sources: Set<String>) throws -> Graph {
+    func map(graph: ValueGraph, precompiledFrameworks: [ValueGraphTarget: AbsolutePath], sources: Set<String>) throws -> ValueGraph {
         invokedMap = true
         invokedMapCount += 1
         invokedMapParameters = (graph, precompiledFrameworks, sources)

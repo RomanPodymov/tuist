@@ -16,7 +16,7 @@ final class CachePrintHashesServiceTests: TuistUnitTestCase {
     var cacheGraphContentHasher: MockCacheGraphContentHasher!
     var clock: Clock!
     var path: AbsolutePath!
-    var generatorModelLoader: MockGeneratorModelLoader!
+    var configLoader: MockConfigLoader!
 
     override func setUp() {
         super.setUp()
@@ -26,15 +26,17 @@ final class CachePrintHashesServiceTests: TuistUnitTestCase {
         cacheGraphContentHasher = MockCacheGraphContentHasher()
         clock = StubClock()
 
-        generatorModelLoader = MockGeneratorModelLoader(basePath: path)
-        generatorModelLoader.mockConfig("") { (_) -> Config in
+        configLoader = MockConfigLoader()
+        configLoader.loadConfigStub = { _ in
             Config.test()
         }
 
-        subject = CachePrintHashesService(generator: generator,
-                                          cacheGraphContentHasher: cacheGraphContentHasher,
-                                          clock: clock,
-                                          generatorModelLoader: generatorModelLoader)
+        subject = CachePrintHashesService(
+            generator: generator,
+            cacheGraphContentHasher: cacheGraphContentHasher,
+            clock: clock,
+            configLoader: configLoader
+        )
     }
 
     override func tearDown() {
@@ -47,10 +49,12 @@ final class CachePrintHashesServiceTests: TuistUnitTestCase {
 
     func test_run_loads_the_graph() throws {
         // Given
-        subject = CachePrintHashesService(generator: generator,
-                                          cacheGraphContentHasher: cacheGraphContentHasher,
-                                          clock: clock,
-                                          generatorModelLoader: generatorModelLoader)
+        subject = CachePrintHashesService(
+            generator: generator,
+            cacheGraphContentHasher: cacheGraphContentHasher,
+            clock: clock,
+            configLoader: configLoader
+        )
 
         // When
         _ = try subject.run(path: path, xcframeworks: false, profile: nil)
@@ -61,14 +65,16 @@ final class CachePrintHashesServiceTests: TuistUnitTestCase {
 
     func test_run_content_hasher_gets_correct_graph() throws {
         // Given
-        subject = CachePrintHashesService(generator: generator,
-                                          cacheGraphContentHasher: cacheGraphContentHasher,
-                                          clock: clock,
-                                          generatorModelLoader: generatorModelLoader)
-        let graph = Graph.test()
+        subject = CachePrintHashesService(
+            generator: generator,
+            cacheGraphContentHasher: cacheGraphContentHasher,
+            clock: clock,
+            configLoader: configLoader
+        )
+        let graph = ValueGraph.test()
         generator.loadStub = { _ in graph }
 
-        var invokedGraph: Graph?
+        var invokedGraph: ValueGraph?
         cacheGraphContentHasher.contentHashesStub = { graph, _, _ in
             invokedGraph = graph
             return [:]
@@ -83,16 +89,18 @@ final class CachePrintHashesServiceTests: TuistUnitTestCase {
 
     func test_run_outputs_correct_hashes() throws {
         // Given
-        let target1 = TargetNode.test(target: .test(name: "ShakiOne"))
-        let target2 = TargetNode.test(target: .test(name: "ShakiTwo"))
+        let target1 = ValueGraphTarget.test(target: .test(name: "ShakiOne"))
+        let target2 = ValueGraphTarget.test(target: .test(name: "ShakiTwo"))
         cacheGraphContentHasher.contentHashesStub = { _, _, _ in
             [target1: "hash1", target2: "hash2"]
         }
 
-        subject = CachePrintHashesService(generator: generator,
-                                          cacheGraphContentHasher: cacheGraphContentHasher,
-                                          clock: clock,
-                                          generatorModelLoader: generatorModelLoader)
+        subject = CachePrintHashesService(
+            generator: generator,
+            cacheGraphContentHasher: cacheGraphContentHasher,
+            clock: clock,
+            configLoader: configLoader
+        )
 
         // When
         _ = try subject.run(path: path, xcframeworks: false, profile: nil)
@@ -133,7 +141,7 @@ final class CachePrintHashesServiceTests: TuistUnitTestCase {
     func test_run_gives_correct_cache_profile_type_to_hasher() throws {
         // Given
         let profile: Cache.Profile = .test(name: "Simulator", configuration: "Debug")
-        generatorModelLoader.mockConfig("") { (_) -> Config in
+        configLoader.loadConfigStub = { _ in
             Config.test(cache: .test(profiles: [profile]))
         }
 

@@ -2,182 +2,360 @@ import Foundation
 import TSCBasic
 import TuistCore
 import TuistGraph
+import TuistLoader
 import TuistSupport
 
 protocol ProjectEditorMapping: AnyObject {
-    func map(tuistPath: AbsolutePath,
-             sourceRootPath: AbsolutePath,
-             xcodeProjPath: AbsolutePath,
-             setupPath: AbsolutePath?,
-             configPath: AbsolutePath?,
-             dependenciesPath: AbsolutePath?,
-             manifests: [AbsolutePath],
-             helpers: [AbsolutePath],
-             templates: [AbsolutePath],
-             projectDescriptionPath: AbsolutePath) throws -> (Project, Graph)
+    func map(
+        name: String,
+        tuistPath: AbsolutePath,
+        sourceRootPath: AbsolutePath,
+        destinationDirectory: AbsolutePath,
+        setupPath: AbsolutePath?,
+        configPath: AbsolutePath?,
+        dependenciesPath: AbsolutePath?,
+        projectManifests: [AbsolutePath],
+        editablePluginManifests: [EditablePluginManifest],
+        pluginProjectDescriptionHelpersModule: [ProjectDescriptionHelpersModule],
+        helpers: [AbsolutePath],
+        templates: [AbsolutePath],
+        projectDescriptionPath: AbsolutePath
+    ) throws -> ValueGraph
 }
 
+// swiftlint:disable:next type_body_length
 final class ProjectEditorMapper: ProjectEditorMapping {
     // swiftlint:disable:next function_body_length
-    func map(tuistPath: AbsolutePath,
-             sourceRootPath: AbsolutePath,
-             xcodeProjPath: AbsolutePath,
-             setupPath: AbsolutePath?,
-             configPath: AbsolutePath?,
-             dependenciesPath: AbsolutePath?,
-             manifests: [AbsolutePath],
-             helpers: [AbsolutePath],
-             templates: [AbsolutePath],
-             projectDescriptionPath: AbsolutePath) throws -> (Project, Graph)
-    {
-        // Settings
-        let projectSettings = Settings(base: ["ONLY_ACTIVE_ARCH": "NO",
-                                              "EXCLUDED_ARCHS": "arm64"],
-                                       configurations: Settings.default.configurations,
-                                       defaultSettings: .recommended)
-
+    func map(
+        name: String,
+        tuistPath: AbsolutePath,
+        sourceRootPath: AbsolutePath,
+        destinationDirectory: AbsolutePath,
+        setupPath: AbsolutePath?,
+        configPath: AbsolutePath?,
+        dependenciesPath: AbsolutePath?,
+        projectManifests: [AbsolutePath],
+        editablePluginManifests: [EditablePluginManifest],
+        pluginProjectDescriptionHelpersModule: [ProjectDescriptionHelpersModule],
+        helpers: [AbsolutePath],
+        templates: [AbsolutePath],
+        projectDescriptionPath: AbsolutePath
+    ) throws -> ValueGraph {
         let swiftVersion = try System.shared.swiftVersion()
-        let targetSettings = Settings(base: settings(projectDescriptionPath: projectDescriptionPath, swiftVersion: swiftVersion),
-                                      configurations: Settings.default.configurations,
-                                      defaultSettings: .recommended)
 
-        // Targets
-        var manifestsDependencies: [Dependency] = []
-        if !helpers.isEmpty {
-            manifestsDependencies = [.target(name: "ProjectDescriptionHelpers")]
-        }
+        let pluginsProject = mapPluginsProject(
+            pluginManifests: editablePluginManifests,
+            projectDescriptionPath: projectDescriptionPath,
+            swiftVersion: swiftVersion,
+            sourceRootPath: sourceRootPath,
+            destinationDirectory: destinationDirectory,
+            tuistPath: tuistPath
+        )
 
-        let manifestsTargets = named(manifests: manifests).map { name, manifestSourcePath in
-            editorHelperTarget(name: name,
-                               targetSettings: targetSettings,
-                               sourcePaths: [manifestSourcePath],
-                               dependencies: manifestsDependencies)
-        }
+        let manifestsProject = mapManifestsProject(
+            projectManifests: projectManifests,
+            projectDescriptionPath: projectDescriptionPath,
+            swiftVersion: swiftVersion,
+            sourceRootPath: sourceRootPath,
+            destinationDirectory: destinationDirectory,
+            tuistPath: tuistPath,
+            helpers: helpers,
+            templates: templates,
+            setupPath: setupPath,
+            configPath: configPath,
+            dependenciesPath: dependenciesPath,
+            editablePluginTargets: editablePluginManifests.map(\.name),
+            pluginProjectDescriptionHelpersModule: pluginProjectDescriptionHelpersModule
+        )
 
-        var helpersTarget: Target?
-        if !helpers.isEmpty {
-            helpersTarget = editorHelperTarget(name: "ProjectDescriptionHelpers",
-                                               targetSettings: targetSettings,
-                                               sourcePaths: helpers)
-        }
-        var templatesTarget: Target?
-        if !templates.isEmpty {
-            templatesTarget = editorHelperTarget(name: "Templates",
-                                                 targetSettings: targetSettings,
-                                                 sourcePaths: templates)
-        }
-        var setupTarget: Target?
-        if let setupPath = setupPath {
-            setupTarget = editorHelperTarget(name: "Setup",
-                                             targetSettings: targetSettings,
-                                             sourcePaths: [setupPath])
-        }
-        var configTarget: Target?
-        if let configPath = configPath {
-            configTarget = editorHelperTarget(name: "Config",
-                                              targetSettings: targetSettings,
-                                              sourcePaths: [configPath])
-        }
-        var dependenciesTarget: Target?
-        if let dependenciesPath = dependenciesPath {
-            dependenciesTarget = editorHelperTarget(name: "Dependencies",
-                                                    targetSettings: targetSettings,
-                                                    sourcePaths: [dependenciesPath])
-        }
+        let projects = [pluginsProject, manifestsProject].compactMap { $0 }
 
-        var targets: [Target] = []
-        targets.append(contentsOf: manifestsTargets)
-        if let helpersTarget = helpersTarget { targets.append(helpersTarget) }
-        if let templatesTarget = templatesTarget { targets.append(templatesTarget) }
-        if let setupTarget = setupTarget { targets.append(setupTarget) }
-        if let configTarget = configTarget { targets.append(configTarget) }
-        if let dependenciesTarget = dependenciesTarget { targets.append(dependenciesTarget) }
-
-        // Run Scheme
-        let buildAction = BuildAction(targets: targets.map { TargetReference(projectPath: sourceRootPath, name: $0.name) })
-        let arguments = Arguments(launchArguments: [LaunchArgument(name: "generate --path \(sourceRootPath)", isEnabled: true)])
-        let runAction = RunAction(configurationName: "Debug", executable: nil, filePath: tuistPath, arguments: arguments, diagnosticsOptions: Set())
-        let scheme = Scheme(name: "Manifests", shared: true, buildAction: buildAction, runAction: runAction)
-
-        // Project
-        let project = Project(path: sourceRootPath,
-                              sourceRootPath: sourceRootPath,
-                              xcodeProjPath: xcodeProjPath,
-                              name: "Manifests",
-                              organizationName: nil,
-                              developmentRegion: nil,
-                              settings: projectSettings,
-                              filesGroup: .group(name: "Manifests"),
-                              targets: targets,
-                              packages: [],
-                              schemes: [scheme],
-                              additionalFiles: [])
-
-        // Graph
-        var dependencies: [TargetNode] = []
-
-        if let helpersTarget = helpersTarget {
-            let helpersNode = TargetNode(project: project, target: helpersTarget, dependencies: [])
-            dependencies.append(helpersNode)
-        }
-        if let templatesTarget = templatesTarget {
-            let templatesNode = TargetNode(project: project, target: templatesTarget, dependencies: [])
-            dependencies.append(templatesNode)
-        }
-        if let setupTarget = setupTarget {
-            let setupNode = TargetNode(project: project, target: setupTarget, dependencies: [])
-            dependencies.append(setupNode)
-        }
-        if let configTarget = configTarget {
-            let configNode = TargetNode(project: project, target: configTarget, dependencies: [])
-            dependencies.append(configNode)
-        }
-        if let dependenciesTarget = dependenciesTarget {
-            let dependenciesNode = TargetNode(project: project, target: dependenciesTarget, dependencies: [])
-            dependencies.append(dependenciesNode)
-        }
-
-        let manifestTargetNodes = manifestsTargets.map { TargetNode(project: project, target: $0, dependencies: dependencies) }
         let workspace = Workspace(
-            path: project.path,
-            xcWorkspacePath: project.path.appending(component: "Manifests.xcworkspace"),
-            name: "Manifests",
-            projects: [project.path]
+            path: sourceRootPath,
+            xcWorkspacePath: destinationDirectory.appending(component: "\(name).xcworkspace"),
+            name: name,
+            projects: projects.map(\.path)
         )
 
-        let graph = Graph(
-            name: "Manifests",
-            entryPath: sourceRootPath,
-            entryNodes: manifestTargetNodes,
+        let graphProjects = Dictionary(uniqueKeysWithValues: projects.map { ($0.path, $0) })
+
+        let graphTargets = projects
+            .lazy
+            .map { ($0.path, $0.targets) }
+            .map { path, targets in (path, Dictionary(uniqueKeysWithValues: targets.map { ($0.name, $0) })) }
+
+        let graphDependencies = projects
+            .lazy
+            .flatMap { project -> [(ValueGraphDependency, Set<ValueGraphDependency>)] in
+                let graphDependencies = project.targets.map(\.dependencies).lazy.map { dependencies in
+                    dependencies.lazy.compactMap { dependency -> ValueGraphDependency? in
+                        switch dependency {
+                        case let .target(name):
+                            if let pluginsProject = pluginsProject, editablePluginManifests.contains(where: { $0.name == name }) {
+                                return .target(name: name, path: pluginsProject.path)
+                            } else {
+                                return .target(name: name, path: project.path)
+                            }
+                        default:
+                            return nil
+                        }
+                    }
+                }
+
+                return zip(project.targets, graphDependencies).map { target, dependencies in
+                    (ValueGraphDependency.target(name: target.name, path: project.path), Set(dependencies))
+                }
+            }
+
+        return ValueGraph(
+            name: name,
+            path: sourceRootPath,
             workspace: workspace,
-            projects: [project],
-            cocoapods: [],
-            packages: [],
-            precompiled: [],
-            targets: [sourceRootPath: manifestTargetNodes + dependencies]
+            projects: graphProjects,
+            packages: [:],
+            targets: Dictionary(uniqueKeysWithValues: graphTargets),
+            dependencies: Dictionary(uniqueKeysWithValues: graphDependencies)
         )
-
-        // Project
-        return (project, graph)
     }
 
-    /// It returns the build settings that should be used in the manifests target.
-    /// - Parameter projectDescriptionPath: Path to the ProjectDescription framework.
-    /// - Parameter swiftVersion: The system's Swift version.
-    private func settings(projectDescriptionPath: AbsolutePath, swiftVersion: String) -> SettingsDictionary {
-        let frameworkParentDirectory = projectDescriptionPath.parentDirectory
-        var buildSettings = SettingsDictionary()
-        buildSettings["FRAMEWORK_SEARCH_PATHS"] = .string(frameworkParentDirectory.pathString)
-        buildSettings["LIBRARY_SEARCH_PATHS"] = .string(frameworkParentDirectory.pathString)
-        buildSettings["SWIFT_INCLUDE_PATHS"] = .string(frameworkParentDirectory.pathString)
-        buildSettings["SWIFT_VERSION"] = .string(swiftVersion)
-        return buildSettings
+    // swiftlint:disable:next function_body_length
+    private func mapManifestsProject(
+        projectManifests: [AbsolutePath],
+        projectDescriptionPath: AbsolutePath,
+        swiftVersion: String,
+        sourceRootPath: AbsolutePath,
+        destinationDirectory: AbsolutePath,
+        tuistPath: AbsolutePath,
+        helpers: [AbsolutePath],
+        templates: [AbsolutePath],
+        setupPath: AbsolutePath?,
+        configPath: AbsolutePath?,
+        dependenciesPath: AbsolutePath?,
+        editablePluginTargets: [String],
+        pluginProjectDescriptionHelpersModule: [ProjectDescriptionHelpersModule]
+    ) -> Project? {
+        guard !projectManifests.isEmpty else { return nil }
+
+        let projectName = "Manifests"
+        let projectPath = sourceRootPath.appending(component: projectName)
+        let manifestsFilesGroup = ProjectGroup.group(name: projectName)
+        let baseTargetSettings = Settings(
+            base: targetBaseSettings(for: [projectDescriptionPath], swiftVersion: swiftVersion),
+            configurations: Settings.default.configurations,
+            defaultSettings: .recommended
+        )
+
+        let helpersTarget: Target? = {
+            guard !helpers.isEmpty else { return nil }
+            return editorHelperTarget(
+                name: Constants.helpersDirectoryName,
+                filesGroup: manifestsFilesGroup,
+                targetSettings: baseTargetSettings,
+                sourcePaths: helpers
+            )
+        }()
+
+        let templatesTarget: Target? = {
+            guard !templates.isEmpty else { return nil }
+            return editorHelperTarget(
+                name: Constants.templatesDirectoryName,
+                filesGroup: manifestsFilesGroup,
+                targetSettings: baseTargetSettings,
+                sourcePaths: templates
+            )
+        }()
+
+        let setupTarget: Target? = {
+            guard let setupPath = setupPath else { return nil }
+            return editorHelperTarget(
+                name: "Setup",
+                filesGroup: manifestsFilesGroup,
+                targetSettings: baseTargetSettings,
+                sourcePaths: [setupPath]
+            )
+        }()
+
+        let configTarget: Target? = {
+            guard let configPath = configPath else { return nil }
+            return editorHelperTarget(
+                name: "Config",
+                filesGroup: manifestsFilesGroup,
+                targetSettings: baseTargetSettings,
+                sourcePaths: [configPath]
+            )
+        }()
+
+        let dependenciesTarget: Target? = {
+            guard let dependenciesPath = dependenciesPath else { return nil }
+            return editorHelperTarget(
+                name: "Dependencies",
+                filesGroup: manifestsFilesGroup,
+                targetSettings: baseTargetSettings,
+                sourcePaths: [dependenciesPath]
+            )
+        }()
+
+        let manifestTargetSettings = Settings(
+            base: targetBaseSettings(for: [projectDescriptionPath] + pluginProjectDescriptionHelpersModule.map(\.path), swiftVersion: swiftVersion),
+            configurations: Settings.default.configurations,
+            defaultSettings: .recommended
+        )
+
+        let manifestsTargets = namedManifests(projectManifests).map { name, projectManifestSourcePath -> Target in
+            let helperDependencies = helpersTarget.map { [TargetDependency.target(name: $0.name)] } ?? []
+            let editablePluginTargets = editablePluginTargets.map { TargetDependency.target(name: $0) }
+            let dependencies = helperDependencies + editablePluginTargets
+
+            return editorHelperTarget(
+                name: name,
+                filesGroup: manifestsFilesGroup,
+                targetSettings: manifestTargetSettings,
+                sourcePaths: [projectManifestSourcePath],
+                dependencies: dependencies
+            )
+        }
+
+        let targets = [
+            helpersTarget,
+            templatesTarget,
+            setupTarget,
+            configTarget,
+            dependenciesTarget,
+        ].compactMap { $0 } + manifestsTargets
+
+        let buildAction = BuildAction(targets: targets.map { TargetReference(projectPath: projectPath, name: $0.name) })
+        let arguments = Arguments(launchArguments: [LaunchArgument(name: "generate --path \(sourceRootPath)", isEnabled: true)])
+        let runAction = RunAction(configurationName: "Debug", executable: nil, filePath: tuistPath, arguments: arguments, diagnosticsOptions: Set())
+        let scheme = Scheme(name: projectName, shared: true, buildAction: buildAction, runAction: runAction)
+        let projectSettings = Settings(
+            base: [
+                "ONLY_ACTIVE_ARCH": "NO",
+                "EXCLUDED_ARCHS": "arm64",
+            ],
+            configurations: Settings.default.configurations,
+            defaultSettings: .recommended
+        )
+
+        return Project(
+            path: projectPath,
+            sourceRootPath: sourceRootPath,
+            xcodeProjPath: destinationDirectory.appending(component: "\(projectName).xcodeproj"),
+            name: projectName,
+            organizationName: nil,
+            developmentRegion: nil,
+            settings: projectSettings,
+            filesGroup: manifestsFilesGroup,
+            targets: targets,
+            packages: [],
+            schemes: [scheme],
+            ideTemplateMacros: nil,
+            additionalFiles: []
+        )
+    }
+
+    // swiftlint:disable:next function_body_length
+    private func mapPluginsProject(
+        pluginManifests: [EditablePluginManifest],
+        projectDescriptionPath: AbsolutePath,
+        swiftVersion: String,
+        sourceRootPath: AbsolutePath,
+        destinationDirectory: AbsolutePath,
+        tuistPath _: AbsolutePath
+    ) -> Project? {
+        guard !pluginManifests.isEmpty else { return nil }
+
+        let projectName = "Plugins"
+        let projectPath = sourceRootPath.appending(component: projectName)
+        let pluginsFilesGroup = ProjectGroup.group(name: projectName)
+        let targetSettings = Settings(
+            base: targetBaseSettings(for: [projectDescriptionPath], swiftVersion: swiftVersion),
+            configurations: Settings.default.configurations,
+            defaultSettings: .recommended
+        )
+
+        let pluginTargets = pluginManifests.map { manifest -> Target in
+            let pluginManifest = manifest.path.appending(component: "Plugin.swift")
+            let pluginHelpersPath = manifest.path.appending(component: Constants.helpersDirectoryName)
+            let pluginTemplatesPath = manifest.path.appending(component: Constants.templatesDirectoryName)
+            let sourcePaths = [pluginManifest] +
+                FileHandler.shared.glob(pluginHelpersPath, glob: "**/*.swift") +
+                FileHandler.shared.glob(pluginTemplatesPath, glob: "**/*.swift")
+            return editorHelperTarget(
+                name: manifest.name,
+                filesGroup: pluginsFilesGroup,
+                targetSettings: targetSettings,
+                sourcePaths: sourcePaths,
+                dependencies: []
+            )
+        }
+
+        let schemes = pluginTargets.map { target -> Scheme in
+            let buildAction = BuildAction(targets: [TargetReference(projectPath: projectPath, name: target.name)])
+            return Scheme(name: target.name, shared: true, buildAction: buildAction, runAction: nil)
+        }
+
+        let allPluginsScheme = Scheme(
+            name: "Plugins",
+            shared: true,
+            buildAction: BuildAction(targets: pluginTargets.map { TargetReference(projectPath: projectPath, name: $0.name) }),
+            runAction: nil
+        )
+
+        let allSchemes = schemes + [allPluginsScheme]
+
+        let projectSettings = Settings(
+            base: [
+                "ONLY_ACTIVE_ARCH": "NO",
+                "EXCLUDED_ARCHS": "arm64",
+            ],
+            configurations: Settings.default.configurations,
+            defaultSettings: .recommended
+        )
+
+        return Project(
+            path: projectPath,
+            sourceRootPath: sourceRootPath,
+            xcodeProjPath: destinationDirectory.appending(component: "\(projectName).xcodeproj"),
+            name: projectName,
+            organizationName: nil,
+            developmentRegion: nil,
+            settings: projectSettings,
+            filesGroup: pluginsFilesGroup,
+            targets: pluginTargets,
+            packages: [],
+            schemes: allSchemes,
+            ideTemplateMacros: nil,
+            additionalFiles: []
+        )
+    }
+
+    /// Collects all targets into a dictionary where each key is a reference to a target
+    /// which maps to a set of target references representing the target's dependencies.
+    /// - Parameters:
+    ///   - targets: The targets to map to their dependencies.
+    ///   - projectPath: The path to the project where the targets are defined.
+    /// - Returns: dictionary where each key is a reference to a target and value is the target's dependencies.
+    private func mapTargetsToDependencies(
+        targets: [Target],
+        projectPath: AbsolutePath
+    ) -> [TargetReference: Set<TargetReference>] {
+        targets.reduce(into: [TargetReference: Set<TargetReference>]()) { result, target in
+            let dependencyRefs = target.dependencies.lazy.compactMap { dependency -> TargetReference? in
+                switch dependency {
+                case let .target(name):
+                    return TargetReference(projectPath: projectPath, name: name)
+                default:
+                    return nil
+                }
+            }
+            result[TargetReference(projectPath: projectPath, name: target.name)] = Set(dependencyRefs)
+        }
     }
 
     /// It returns a dictionary with unique name as key for each Manifest file
     /// - Parameter manifests: Manifest files to assign an unique name
     /// - Returns: Dictionary composed by unique name as key and Manifest file as value.
-    private func named(manifests: [AbsolutePath]) -> [String: AbsolutePath] {
+    private func namedManifests(_ manifests: [AbsolutePath]) -> [String: AbsolutePath] {
         manifests.reduce(into: [String: AbsolutePath]()) { result, manifest in
             var name = "\(manifest.parentDirectory.basename)Manifests"
             while result[name] != nil {
@@ -190,19 +368,38 @@ final class ProjectEditorMapper: ProjectEditorMapping {
     /// It returns a target for edit project.
     /// - Parameters:
     ///   - name: Name for the target.
+    ///   - filesGroup: File group for target.
     ///   - targetSettings: Target's settings.
     ///   - sourcePaths: Target's sources.
     ///   - dependencies: Target's dependencies.
     /// - Returns: Target for edit project.
-    private func editorHelperTarget(name: String, targetSettings: Settings, sourcePaths: [AbsolutePath], dependencies: [Dependency] = []) -> Target {
-        Target(name: name,
-               platform: .macOS,
-               product: .staticFramework,
-               productName: name,
-               bundleId: "io.tuist.${PRODUCT_NAME:rfc1034identifier}",
-               settings: targetSettings,
-               sources: sourcePaths.map { SourceFile(path: $0, compilerFlags: nil) },
-               filesGroup: .group(name: "Manifests"),
-               dependencies: dependencies)
+    private func editorHelperTarget(
+        name: String,
+        filesGroup: ProjectGroup,
+        targetSettings: Settings,
+        sourcePaths: [AbsolutePath],
+        dependencies: [TargetDependency] = []
+    ) -> Target {
+        Target(
+            name: name,
+            platform: .macOS,
+            product: .staticFramework,
+            productName: name,
+            bundleId: "io.tuist.${PRODUCT_NAME:rfc1034identifier}",
+            settings: targetSettings,
+            sources: sourcePaths.map { SourceFile(path: $0, compilerFlags: nil) },
+            filesGroup: filesGroup,
+            dependencies: dependencies
+        )
+    }
+
+    private func targetBaseSettings(for includes: [AbsolutePath], swiftVersion: String) -> SettingsDictionary {
+        let includePaths = includes.map(\.parentDirectory.pathString)
+        return [
+            "FRAMEWORK_SEARCH_PATHS": .array(includePaths),
+            "LIBRARY_SEARCH_PATHS": .array(includePaths),
+            "SWIFT_INCLUDE_PATHS": .array(includePaths),
+            "SWIFT_VERSION": .string(swiftVersion),
+        ]
     }
 }

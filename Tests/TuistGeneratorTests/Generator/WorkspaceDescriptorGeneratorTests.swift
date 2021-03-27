@@ -46,11 +46,13 @@ final class WorkspaceDescriptorGeneratorTests: TuistUnitTestCase {
             xcWorkspacePath: temporaryPath.appending(component: "Test.xcworkspace"),
             additionalFiles: additionalFiles
         )
-        let graph = Graph.test(entryPath: temporaryPath, workspace: workspace)
+        let graph = ValueGraph.test(
+            path: temporaryPath,
+            workspace: workspace
+        )
 
         // When
-        let valueGraph = ValueGraph(graph: graph)
-        let graphTraverser = ValueGraphTraverser(graph: valueGraph)
+        let graphTraverser = ValueGraphTraverser(graph: graph)
         let result = try subject.generate(graphTraverser: graphTraverser)
 
         // Then
@@ -70,9 +72,11 @@ final class WorkspaceDescriptorGeneratorTests: TuistUnitTestCase {
         let temporaryPath = try self.temporaryPath()
         try FileHandler.shared.createFolder(temporaryPath.appending(component: "\(name).xcworkspace"))
         let workspace = Workspace.test(name: name)
-        let graph = Graph.test(entryPath: temporaryPath, workspace: workspace)
-        let valueGraph = ValueGraph(graph: graph)
-        let graphTraverser = ValueGraphTraverser(graph: valueGraph)
+        let graph = ValueGraph.test(
+            path: temporaryPath,
+            workspace: workspace
+        )
+        let graphTraverser = ValueGraphTraverser(graph: graph)
 
         // When
         XCTAssertNoThrow(
@@ -84,21 +88,30 @@ final class WorkspaceDescriptorGeneratorTests: TuistUnitTestCase {
         // Given
         let temporaryPath = try self.temporaryPath()
         let target = anyTarget()
-        let project = Project.test(path: temporaryPath,
-                                   sourceRootPath: temporaryPath,
-                                   xcodeProjPath: temporaryPath.appending(component: "Test.xcodeproj"),
-                                   name: "Test",
-                                   settings: .default,
-                                   targets: [target])
+        let project = Project.test(
+            path: temporaryPath,
+            sourceRootPath: temporaryPath,
+            xcodeProjPath: temporaryPath.appending(component: "Test.xcodeproj"),
+            name: "Test",
+            settings: .default,
+            targets: [target]
+        )
 
         let workspace = Workspace.test(
             xcWorkspacePath: temporaryPath.appending(component: "Test.xcworkspace"),
             projects: [project.path]
         )
-        let graph = Graph.create(project: project,
-                                 dependencies: [(target, [])])
-        let valueGraph = ValueGraph(graph: graph.with(workspace: workspace))
-        let graphTraverser = ValueGraphTraverser(graph: valueGraph)
+
+        let graph = ValueGraph.test(
+            workspace: workspace,
+            projects: [project.path: project],
+            targets: [
+                project.path: [
+                    target.name: target,
+                ],
+            ]
+        )
+        let graphTraverser = ValueGraphTraverser(graph: graph)
 
         // When
         let result = try subject.generate(graphTraverser: graphTraverser)
@@ -112,11 +125,13 @@ final class WorkspaceDescriptorGeneratorTests: TuistUnitTestCase {
 
     // MARK: - Helpers
 
-    func anyTarget(dependencies: [Dependency] = []) -> Target {
-        Target.test(infoPlist: nil,
-                    entitlements: nil,
-                    settings: nil,
-                    dependencies: dependencies)
+    func anyTarget(dependencies: [TargetDependency] = []) -> Target {
+        Target.test(
+            infoPlist: nil,
+            entitlements: nil,
+            settings: nil,
+            dependencies: dependencies
+        )
     }
 }
 

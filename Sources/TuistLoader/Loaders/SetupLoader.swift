@@ -69,15 +69,24 @@ public class SetupLoader: SetupLoading {
     ///           or if there isn't a `Setup.swift` file within the project path.
     public func meet(at path: AbsolutePath) throws {
         guard let setupPath = manifestFilesLocator.locateSetup(at: path) else { throw SetupLoaderError.setupNotFound(path) }
-        logger.info("Setting up the environment defined in \(setupPath).pathString)")
+        logger.info("Setting up the environment defined in \(setupPath.pathString)")
 
         let setupParentPath = setupPath.parentDirectory
 
         let setup = try manifestLoader.loadSetup(at: setupParentPath)
-        try setup.map { command in upLinter.lint(up: command) }
+        try setup.requires.map { command in upLinter.lint(up: command) }
             .flatMap { $0 }
             .printAndThrowIfNeeded()
-        try setup.forEach { command in
+        try setup.requires.forEach { command in
+            if try !command.isMet(projectPath: setupParentPath) {
+                logger.notice("Validating \(command.name)", metadata: .subsection)
+                try command.meet(projectPath: setupParentPath)
+            }
+        }
+        try setup.actions.map { command in upLinter.lint(up: command) }
+            .flatMap { $0 }
+            .printAndThrowIfNeeded()
+        try setup.actions.forEach { command in
             if try !command.isMet(projectPath: setupParentPath) {
                 logger.notice("Configuring \(command.name)", metadata: .subsection)
                 try command.meet(projectPath: setupParentPath)

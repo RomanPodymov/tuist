@@ -31,17 +31,18 @@ public final class TestsCacheGraphMapper: GraphMapping {
         self.graphContentHasher = graphContentHasher
     }
 
-    public func map(graph: Graph) throws -> (Graph, [SideEffectDescriptor]) {
-        let hashableTargets = self.hashableTargets(graph: graph)
+    public func map(graph: ValueGraph) throws -> (ValueGraph, [SideEffectDescriptor]) {
+        let graphTraverser = ValueGraphTraverser(graph: graph)
+        let hashableTargets = self.hashableTargets(graphTraverser: graphTraverser)
         let hashes = try graphContentHasher.contentHashes(for: graph, filter: hashableTargets.contains)
 
-        var visitedNodes: [TargetNode: Bool] = [:]
+        var visitedNodes: [ValueGraphTarget: Bool] = [:]
         var workspace = graph.workspace
         let mappedSchemes = try workspace.schemes
-            .map { scheme -> (Scheme, [TargetNode]) in
+            .map { scheme -> (Scheme, [ValueGraphTarget]) in
                 try map(
                     scheme: scheme,
-                    graph: graph,
+                    graphTraverser: graphTraverser,
                     hashes: hashes,
                     visited: &visitedNodes
                 )
@@ -52,10 +53,10 @@ public final class TestsCacheGraphMapper: GraphMapping {
             logger.notice("\($0.target.name) has not changed from last successful run, skipping...")
         }
         workspace.schemes = schemes
+        var graph = graph
+        graph.workspace = workspace
         return (
-            graph.with(
-                workspace: workspace
-            ),
+            graph,
             hashes.values.map {
                 .file(
                     FileDescriptor(
@@ -68,18 +69,18 @@ public final class TestsCacheGraphMapper: GraphMapping {
 
     // MARK: - Helpers
 
-    private func hashableTargets(graph: Graph) -> Set<TargetNode> {
-        var visitedTargets: [TargetNode: Bool] = [:]
+    private func hashableTargets(graphTraverser: GraphTraversing) -> Set<ValueGraphTarget> {
+        var visitedTargets: [ValueGraphTarget: Bool] = [:]
         return Set(
-            graph.targets
-                .flatMap(\.value)
+            graphTraverser.allTargets()
                 // UI tests depend on the device they are run on
                 // This can be done in the future if we hash the ID of the device
                 // But currently, we consider for hashing only unit tests and its dependencies
                 .filter { $0.target.product == .unitTests }
-                .flatMap { target -> [TargetNode] in
+                .flatMap { target -> [ValueGraphTarget] in
                     targetDependencies(
                         target,
+                        graphTraverser: graphTraverser,
                         visited: &visitedTargets
                     )
                 }
@@ -87,29 +88,39 @@ public final class TestsCacheGraphMapper: GraphMapping {
     }
 
     private func targetDependencies(
-        _ target: TargetNode,
-        visited: inout [TargetNode: Bool]
-    ) -> [TargetNode] {
+        _ target: ValueGraphTarget,
+        graphTraverser: GraphTraversing,
+        visited: inout [ValueGraphTarget: Bool]
+    ) -> [ValueGraphTarget] {
         if visited[target] == true { return [] }
-        let targetDependencies = target.targetDependencies
-            .flatMap {
-                self.targetDependencies(
-                    $0,
-                    visited: &visited
-                )
-            }
+        let targetDependencies = graphTraverser.directTargetDependencies(
+            path: target.path,
+            name: target.target.name
+        )
+        .flatMap {
+            self.targetDependencies(
+                $0,
+                graphTraverser: graphTraverser,
+                visited: &visited
+            )
+        }
         visited[target] = true
         return targetDependencies + [target]
     }
 
-    private func testableTargets(scheme: Scheme, graph: Graph) -> [TargetNode] {
+    private func testableTargets(scheme: Scheme, graphTraverser: GraphTraversing) -> [ValueGraphTarget] {
         scheme.testAction
             .map(\.targets)
             .map { testTargets in
                 testTargets.compactMap { testTarget in
-                    graph.target(
+                    guard
+                        let target = graphTraverser.targets[testTarget.target.projectPath]?[testTarget.target.name],
+                        let project = graphTraverser.projects[testTarget.target.projectPath]
+                    else { return nil }
+                    return ValueGraphTarget(
                         path: testTarget.target.projectPath,
-                        name: testTarget.target.name
+                        target: target,
+                        project: project
                     )
                 }
             } ?? []
@@ -118,19 +129,20 @@ public final class TestsCacheGraphMapper: GraphMapping {
     /// - Returns: Mapped scheme and cached testable targets
     private func map(
         scheme: Scheme,
-        graph: Graph,
-        hashes: [TargetNode: String],
-        visited: inout [TargetNode: Bool]
-    ) throws -> (Scheme, [TargetNode]) {
+        graphTraverser: GraphTraversing,
+        hashes: [ValueGraphTarget: String],
+        visited: inout [ValueGraphTarget: Bool]
+    ) throws -> (Scheme, [ValueGraphTarget]) {
         var scheme = scheme
         guard let testAction = scheme.testAction else { return (scheme, []) }
         let cachedTestableTargets = testableTargets(
             scheme: scheme,
-            graph: graph
+            graphTraverser: graphTraverser
         )
         .filter { testableTarget in
             isCached(
                 testableTarget,
+                graphTraverser: graphTraverser,
                 hashes: hashes,
                 visited: &visited
             )
@@ -140,23 +152,34 @@ public final class TestsCacheGraphMapper: GraphMapping {
             !cachedTestableTargets.contains(where: { $0.target.name == testTarget.target.name })
         }
 
+        if let buildAction = scheme.buildAction {
+            scheme.buildAction?.targets = buildAction.targets.filter { buildTarget in
+                !cachedTestableTargets.contains(where: { $0.target.name == buildTarget.name })
+            }
+        }
+
         return (scheme, cachedTestableTargets)
     }
 
     private func isCached(
-        _ target: TargetNode,
-        hashes: [TargetNode: String],
-        visited: inout [TargetNode: Bool]
+        _ target: ValueGraphTarget,
+        graphTraverser: GraphTraversing,
+        hashes: [ValueGraphTarget: String],
+        visited: inout [ValueGraphTarget: Bool]
     ) -> Bool {
         if let visitedValue = visited[target] { return visitedValue }
-        let allTargetDependenciesAreHashed = target.targetDependencies
-            .allSatisfy {
-                self.isCached(
-                    $0,
-                    hashes: hashes,
-                    visited: &visited
-                )
-            }
+        let allTargetDependenciesAreHashed = graphTraverser.directTargetDependencies(
+            path: target.path,
+            name: target.target.name
+        )
+        .allSatisfy {
+            self.isCached(
+                $0,
+                graphTraverser: graphTraverser,
+                hashes: hashes,
+                visited: &visited
+            )
+        }
         guard let hash = hashes[target] else {
             visited[target] = false
             return false

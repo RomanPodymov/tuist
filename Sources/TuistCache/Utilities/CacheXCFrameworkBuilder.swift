@@ -30,10 +30,12 @@ public final class CacheXCFrameworkBuilder: CacheArtifactBuilding {
                       configuration: String,
                       into outputDirectory: AbsolutePath) throws
     {
-        try build(.workspace(workspacePath),
-                  target: target,
-                  configuration: configuration,
-                  into: outputDirectory)
+        try build(
+            .workspace(workspacePath),
+            target: target,
+            configuration: configuration,
+            into: outputDirectory
+        )
     }
 
     public func build(projectPath: AbsolutePath,
@@ -41,15 +43,16 @@ public final class CacheXCFrameworkBuilder: CacheArtifactBuilding {
                       configuration: String,
                       into outputDirectory: AbsolutePath) throws
     {
-        try build(.project(projectPath),
-                  target: target,
-                  configuration: configuration,
-                  into: outputDirectory)
+        try build(
+            .project(projectPath),
+            target: target,
+            configuration: configuration,
+            into: outputDirectory
+        )
     }
 
     // MARK: - Fileprivate
 
-    // swiftlint:disable:next function_body_length
     fileprivate func build(_ projectTarget: XcodeBuildTarget,
                            target: Target,
                            configuration: String,
@@ -116,23 +119,25 @@ public final class CacheXCFrameworkBuilder: CacheArtifactBuilding {
                                  archivePath: AbsolutePath) throws
     {
         // Without the BUILD_LIBRARY_FOR_DISTRIBUTION argument xcodebuild doesn't generate the .swiftinterface file
-        _ = try xcodeBuildController.archive(projectTarget,
-                                             scheme: scheme,
-                                             clean: false,
-                                             archivePath: archivePath,
-                                             arguments: [
-                                                 .sdk(target.platform.xcodeDeviceSDK),
-                                                 .xcarg("SKIP_INSTALL", "NO"),
-                                                 .xcarg("BUILD_LIBRARY_FOR_DISTRIBUTION", "YES"),
-                                                 .configuration(configuration),
-                                             ])
-            .printFormattedOutput()
-            .do(onSubscribed: {
-                logger.notice("Building \(target.name) for device...", metadata: .subsection)
-            })
-            .ignoreElements()
-            .toBlocking()
-            .last()
+        _ = try xcodeBuildController.archive(
+            projectTarget,
+            scheme: scheme,
+            clean: false,
+            archivePath: archivePath,
+            arguments: [
+                .sdk(target.platform.xcodeDeviceSDK),
+                .xcarg("SKIP_INSTALL", "NO"),
+                .xcarg("BUILD_LIBRARY_FOR_DISTRIBUTION", "YES"),
+                .configuration(configuration),
+            ]
+        )
+        .printFormattedOutput()
+        .do(onSubscribed: {
+            logger.notice("Building \(target.name) for device...", metadata: .subsection)
+        })
+        .ignoreElements()
+        .toBlocking()
+        .last()
     }
 
     fileprivate func simulatorBuild(projectTarget: XcodeBuildTarget,
@@ -142,23 +147,25 @@ public final class CacheXCFrameworkBuilder: CacheArtifactBuilding {
                                     archivePath: AbsolutePath) throws
     {
         // Without the BUILD_LIBRARY_FOR_DISTRIBUTION argument xcodebuild doesn't generate the .swiftinterface file
-        _ = try xcodeBuildController.archive(projectTarget,
-                                             scheme: scheme,
-                                             clean: false,
-                                             archivePath: archivePath,
-                                             arguments: [
-                                                 .sdk(target.platform.xcodeSimulatorSDK!),
-                                                 .xcarg("SKIP_INSTALL", "NO"),
-                                                 .xcarg("BUILD_LIBRARY_FOR_DISTRIBUTION", "YES"),
-                                                 .configuration(configuration),
-                                             ])
-            .printFormattedOutput()
-            .do(onSubscribed: {
-                logger.notice("Building \(target.name) for simulator...", metadata: .subsection)
-            })
-            .ignoreElements()
-            .toBlocking()
-            .last()
+        _ = try xcodeBuildController.archive(
+            projectTarget,
+            scheme: scheme,
+            clean: false,
+            archivePath: archivePath,
+            arguments: [
+                .sdk(target.platform.xcodeSimulatorSDK!),
+                .xcarg("SKIP_INSTALL", "NO"),
+                .xcarg("BUILD_LIBRARY_FOR_DISTRIBUTION", "YES"),
+                .configuration(configuration),
+            ]
+        )
+        .printFormattedOutput()
+        .do(onSubscribed: {
+            logger.notice("Building \(target.name) for simulator...", metadata: .subsection)
+        })
+        .ignoreElements()
+        .toBlocking()
+        .last()
     }
 
     /// Returns the path to the framework inside the archive.

@@ -12,14 +12,14 @@ final class CachePrintHashesService {
 
     let cacheGraphContentHasher: CacheGraphContentHashing
     private let clock: Clock
-    private let generatorModelLoader: GeneratorModelLoading
+    private let configLoader: ConfigLoading
 
     convenience init(contentHasher: ContentHashing = CacheContentHasher()) {
         self.init(
             generator: Generator(contentHasher: contentHasher),
             cacheGraphContentHasher: CacheGraphContentHasher(contentHasher: contentHasher),
             clock: WallClock(),
-            generatorModelLoader: GeneratorModelLoader()
+            configLoader: ConfigLoader(manifestLoader: ManifestLoader())
         )
     }
 
@@ -27,19 +27,19 @@ final class CachePrintHashesService {
         generator: Generating,
         cacheGraphContentHasher: CacheGraphContentHashing,
         clock: Clock,
-        generatorModelLoader: GeneratorModelLoading
+        configLoader: ConfigLoading
     ) {
         self.generator = generator
         self.cacheGraphContentHasher = cacheGraphContentHasher
         self.clock = clock
-        self.generatorModelLoader = generatorModelLoader
+        self.configLoader = configLoader
     }
 
     func run(path: AbsolutePath, xcframeworks: Bool, profile: String?) throws {
         let timer = clock.startTimer()
 
         let graph = try generator.load(path: path)
-        let config = try generatorModelLoader.loadConfig(at: path)
+        let config = try configLoader.loadConfig(path: path)
         let cacheOutputType: CacheOutputType = xcframeworks ? .xcframework : .framework
         let cacheProfile = try CacheProfileResolver().resolveCacheProfile(named: profile, from: config)
         let hashes = try cacheGraphContentHasher.contentHashes(
@@ -53,9 +53,9 @@ final class CachePrintHashesService {
             logger.notice("No cacheable targets were found")
             return
         }
-        let sortedHashes = hashes.sorted { $0.key.name < $1.key.name }
+        let sortedHashes = hashes.sorted { $0.key.target.name < $1.key.target.name }
         for (target, hash) in sortedHashes {
-            logger.info("\(target.name) - \(hash)")
+            logger.info("\(target.target.name) - \(hash)")
         }
         logger.notice("Total time taken: \(time)s")
     }

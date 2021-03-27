@@ -6,13 +6,14 @@ public enum Constants {
     public static let binName = "tuist"
     public static let gitRepositoryURL = "https://github.com/tuist/tuist.git"
     public static let communityURL = "https://community.tuist.io"
-    public static let version = "1.34.0"
+    public static let version = "1.39.0"
     public static let bundleName: String = "tuist.zip"
     public static let trueValues: [String] = ["1", "true", "TRUE", "yes", "YES"]
     public static let tuistDirectoryName: String = "Tuist"
 
     public static let helpersDirectoryName: String = "ProjectDescriptionHelpers"
     public static let signingDirectoryName: String = "Signing"
+    public static let pluginsDirectoryName: String = "Plugins"
 
     public static let masterKey = "master.key"
     public static let encryptedExtension = "encrypted"
@@ -63,9 +64,5 @@ public enum Constants {
 
     public enum GoogleCloud {
         public static let relasesBucketURL = "https://storage.googleapis.com/tuist-releases/"
-    }
-
-    public enum PluginDirectory {
-        public static let name = "Plugins"
     }
 }

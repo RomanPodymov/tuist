@@ -11,7 +11,8 @@ on:
       - Package.resolved
       - Sources/**
       - Tests/**
-      - features/**
+      - projects/tuist/features/**
+      - projects/tuist/fixtures/**
 
 env:
   RUBY_VERSION: '2.7.2'
@@ -23,7 +24,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        xcode: ['11.5', '12.3']
+        xcode: ['12', '12.4']
     steps:
       - uses: actions/checkout@v1
       - name: Select Xcode
@@ -35,7 +36,7 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.xcode }}-spm-${{ hashFiles('**/Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.xcode }}-spm-
-      - uses: actions/setup-ruby@v1
+      - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ env.RUBY_VERSION }}
       - uses: actions/cache@v2
@@ -50,13 +51,13 @@ jobs:
           bundle install --jobs 4 --retry 3
       - name: Run tests
         run: |
-          ./bin/fourier test tuist unit
+          ./fourier test tuist unit
   release_build:
     name: Release build with Xcode ${{ matrix.xcode }}
     runs-on: macOS-latest
     strategy:
       matrix:
-        xcode: ['11.5', '12.3']
+        xcode: ['12', '12.4']
     steps:
       - uses: actions/checkout@v1
       - name: Select Xcode
@@ -76,9 +77,15 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        xcode: ['12.3']
+        xcode: ['12.4']
         feature:
           [
+            'build',
+            'cache-frameworks',
+            'cache-xcframeworks',
+            'dependencies',
+            'edit',
+            'env',
             'generate-1',
             'generate-2',
             'generate-3',
@@ -86,18 +93,15 @@ jobs:
             'generate-5',
             'generate-6',
             'generate-7',
+            'generate-8',
             'init',
-            'lint-project',
             'lint-code',
-            'scaffold',
-            'up',
-            'build',
-            'test',
-            'env',
-            'cache-xcframeworks',
-            'cache-frameworks',
+            'lint-project',
             'precompiled',
-            'dependencies',
+            'scaffold',
+            'test',
+            'up',
+            'graph',
           ]
     steps:
       - uses: actions/checkout@v1
@@ -110,7 +114,7 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.xcode }}-spm-${{ hashFiles('**/Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-spm-
-      - uses: actions/setup-ruby@v1
+      - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ env.RUBY_VERSION }}
       - uses: actions/cache@v2
@@ -124,4 +128,4 @@ jobs:
           bundle config path vendor/bundle
           bundle install --jobs 4 --retry 3
       - name: Run tests
-        run: ./bin/fourier test tuist acceptance features/${{ matrix.feature }}.feature
+        run: ./fourier test tuist acceptance projects/tuist/features/${{ matrix.feature }}.feature

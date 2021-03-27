@@ -14,6 +14,7 @@ public class ValueGraphTraverser: GraphTraversing {
     public var dependencies: [ValueGraphDependency: Set<ValueGraphDependency>] { graph.dependencies }
 
     private let graph: ValueGraph
+    private let systemFrameworkMetadataProvider: SystemFrameworkMetadataProviding = SystemFrameworkMetadataProvider()
 
     public required init(graph: ValueGraph) {
         self.graph = graph
@@ -47,6 +48,10 @@ public class ValueGraphTraverser: GraphTraversing {
         Set(graph.workspace.projects.compactMap {
             projects[$0]
         })
+    }
+
+    public func schemes() -> [Scheme] {
+        projects.values.flatMap(\.schemes) + graph.workspace.schemes
     }
 
     public func cocoapodsPaths() -> Set<AbsolutePath> {
@@ -99,6 +104,26 @@ public class ValueGraphTraverser: GraphTraversing {
     }
 
     public func directTargetDependencies(path: AbsolutePath, name: String) -> Set<ValueGraphTarget> {
+        guard
+            let dependencies = graph.dependencies[.target(name: name, path: path)]
+        else { return [] }
+
+        let targetDependencies = dependencies
+            .compactMap(\.targetDependency)
+
+        return Set(targetDependencies.flatMap { (dependencyName, dependencyPath) -> [ValueGraphTarget] in
+            guard
+                let projectDependencies = graph.targets[dependencyPath],
+                let dependencyTarget = projectDependencies[dependencyName],
+                let dependencyProject = graph.projects[dependencyPath]
+            else {
+                return []
+            }
+            return [ValueGraphTarget(path: dependencyPath, target: dependencyTarget, project: dependencyProject)]
+        })
+    }
+
+    public func directLocalTargetDependencies(path: AbsolutePath, name: String) -> Set<ValueGraphTarget> {
         guard let dependencies = graph.dependencies[.target(name: name, path: path)] else { return [] }
         guard let project = graph.projects[path] else { return Set() }
 
@@ -127,9 +152,11 @@ public class ValueGraphTraverser: GraphTraversing {
             self.target(from: $0)?.target.product == .bundle
         }
 
-        let bundles = filterDependencies(from: .target(name: name, path: path),
-                                         test: isBundle,
-                                         skip: canHostResources)
+        let bundles = filterDependencies(
+            from: .target(name: name, path: path),
+            test: isBundle,
+            skip: canHostResources
+        )
         let bundleTargets = bundles.compactMap(target(from:))
 
         return Set(bundleTargets)
@@ -157,12 +184,12 @@ public class ValueGraphTraverser: GraphTraversing {
         let validProducts: [Product] = [
             .appExtension, .stickerPackExtension, .watch2Extension, .messagesExtension,
         ]
-        return Set(directTargetDependencies(path: path, name: name)
+        return Set(directLocalTargetDependencies(path: path, name: name)
             .filter { validProducts.contains($0.target.product) })
     }
 
     public func appClipDependencies(path: AbsolutePath, name: String) -> ValueGraphTarget? {
-        directTargetDependencies(path: path, name: name)
+        directLocalTargetDependencies(path: path, name: name)
             .first { $0.target.product == .appClip }
     }
 
@@ -185,19 +212,23 @@ public class ValueGraphTraverser: GraphTraversing {
         var references: Set<GraphDependencyReference> = Set([])
 
         /// Precompiled frameworks
-        let precompiledFrameworks = filterDependencies(from: .target(name: name, path: path),
-                                                       test: isDependencyPrecompiledDynamicAndLinkable,
-                                                       skip: canDependencyEmbedProducts)
-            .lazy
-            .compactMap(dependencyReference)
+        let precompiledFrameworks = filterDependencies(
+            from: .target(name: name, path: path),
+            test: isDependencyPrecompiledDynamicAndLinkable,
+            skip: canDependencyEmbedProducts
+        )
+        .lazy
+        .compactMap(dependencyReference)
         references.formUnion(precompiledFrameworks)
 
         /// Other targets' frameworks.
-        let otherTargetFrameworks = filterDependencies(from: .target(name: name, path: path),
-                                                       test: isDependencyDynamicTarget,
-                                                       skip: canDependencyEmbedProducts)
-            .lazy
-            .compactMap(dependencyReference)
+        let otherTargetFrameworks = filterDependencies(
+            from: .target(name: name, path: path),
+            test: isDependencyDynamicTarget,
+            skip: canDependencyEmbedProducts
+        )
+        .lazy
+        .compactMap(dependencyReference)
         references.formUnion(otherTargetFrameworks)
 
         // Exclude any products embed in unit test host apps
@@ -212,6 +243,7 @@ public class ValueGraphTraverser: GraphTraversing {
         return references
     }
 
+    // swiftlint:disable:next function_body_length
     public func linkableDependencies(path: AbsolutePath, name: String) throws -> Set<GraphDependencyReference> {
         guard let target = self.target(path: path, name: name) else { return Set() }
 
@@ -232,10 +264,18 @@ public class ValueGraphTraverser: GraphTraversing {
 
         // AppClip dependencies
         if target.target.isAppClip {
-            let path = try SDKNode.appClip(status: .required).path
-            references.formUnion([GraphDependencyReference.sdk(path: path,
-                                                               status: .required,
-                                                               source: .system)])
+            let path = try systemFrameworkMetadataProvider.loadMetadata(
+                sdkName: "AppClip.framework",
+                status: .required,
+                platform: .iOS,
+                source: .system
+            )
+            .path
+            references.formUnion([GraphDependencyReference.sdk(
+                path: path,
+                status: .required,
+                source: .system
+            )])
         }
 
         // Direct system libraries and frameworks
@@ -266,13 +306,16 @@ public class ValueGraphTraverser: GraphTraversing {
             // Exclude any static products linked in a host application
             if target.target.product == .unitTests {
                 if let hostApp = hostApplication(path: path, name: name) {
-                    transitiveStaticTargets.subtract(self.transitiveStaticTargets(from: .target(name: hostApp.target.name, path: hostApp.project.path)))
+                    transitiveStaticTargets.subtract(
+                        self.transitiveStaticTargets(from: .target(name: hostApp.target.name, path: hostApp.project.path))
+                    )
                 }
             }
 
             let transitiveStaticTargetReferences = transitiveStaticTargets.compactMap(dependencyReference)
 
-            let staticDependenciesDynamicLibrariesAndFrameworks = transitiveStaticTargets.flatMap { (dependency) -> [GraphDependencyReference] in
+            // swiftlint:disable:next identifier_name
+            let staticDependenciesDynamicLibrariesAndFrameworks = transitiveStaticTargets.flatMap { dependency in
                 self.graph.dependencies[dependency, default: []]
                     .lazy
                     .filter(\.isTarget)
@@ -280,7 +323,20 @@ public class ValueGraphTraverser: GraphTraversing {
                     .compactMap(dependencyReference)
             }
 
-            references.formUnion(transitiveStaticTargetReferences + staticDependenciesDynamicLibrariesAndFrameworks)
+            // swiftlint:disable:next identifier_name
+            let staticDependenciesPrecompiledDynamicLibrariesAndFrameworks = transitiveStaticTargets.flatMap { dependency in
+                self.graph.dependencies[dependency, default: []]
+                    .lazy
+                    .filter(\.isPrecompiled)
+                    .filter(isDependencyPrecompiledDynamicAndLinkable)
+                    .compactMap(dependencyReference)
+            }
+
+            references.formUnion(
+                transitiveStaticTargetReferences
+                    + staticDependenciesDynamicLibrariesAndFrameworks
+                    + staticDependenciesPrecompiledDynamicLibrariesAndFrameworks
+            )
         }
 
         // Link dynamic libraries and frameworks
@@ -345,22 +401,24 @@ public class ValueGraphTraverser: GraphTraversing {
         var references: Set<AbsolutePath> = Set([])
 
         let from = ValueGraphDependency.target(name: name, path: path)
-        let precompiledFramewoksPaths = filterDependencies(from: from,
-                                                           test: isDependencyPrecompiledDynamicAndLinkable,
-                                                           skip: canDependencyEmbedProducts)
-            .lazy
-            .compactMap { (dependency: ValueGraphDependency) -> AbsolutePath? in
-                switch dependency {
-                case let .xcframework(path, _, _, _): return path
-                case let .framework(path, _, _, _, _, _, _): return path
-                case .library: return nil
-                case .packageProduct: return nil
-                case .target: return nil
-                case .sdk: return nil
-                case .cocoapods: return nil
-                }
+        let precompiledFramewoksPaths = filterDependencies(
+            from: from,
+            test: isDependencyPrecompiledDynamicAndLinkable,
+            skip: canDependencyEmbedProducts
+        )
+        .lazy
+        .compactMap { (dependency: ValueGraphDependency) -> AbsolutePath? in
+            switch dependency {
+            case let .xcframework(path, _, _, _): return path
+            case let .framework(path, _, _, _, _, _, _): return path
+            case .library: return nil
+            case .packageProduct: return nil
+            case .target: return nil
+            case .sdk: return nil
+            case .cocoapods: return nil
             }
-            .map(\.parentDirectory)
+        }
+        .map(\.parentDirectory)
 
         references.formUnion(precompiledFramewoksPaths)
         return references
@@ -394,6 +452,26 @@ public class ValueGraphTraverser: GraphTraversing {
             references.formUnion(self.copyProductDependencies(path: path, name: target.target.name))
         }
         return references
+    }
+
+    public func dependsOnXCTest(path: AbsolutePath, name: String) -> Bool {
+        guard let target = target(path: path, name: name) else {
+            return false
+        }
+        if target.target.product.testsBundle {
+            return true
+        }
+        guard let directDependencies = dependencies[.target(name: name, path: path)] else {
+            return false
+        }
+        return directDependencies.contains(where: { dependency in
+            switch dependency {
+            case .sdk(name: "XCTest", path: _, status: _, source: _):
+                return true
+            default:
+                return false
+            }
+        })
     }
 
     // MARK: - Internal
@@ -445,9 +523,11 @@ public class ValueGraphTraverser: GraphTraversing {
     }
 
     func transitiveStaticTargets(from dependency: ValueGraphDependency) -> Set<ValueGraphDependency> {
-        filterDependencies(from: dependency,
-                           test: isDependencyStaticTarget,
-                           skip: canDependencyLinkStaticProducts)
+        filterDependencies(
+            from: dependency,
+            test: isDependencyStaticTarget,
+            skip: canDependencyLinkStaticProducts
+        )
     }
 
     func targetProductReference(target: ValueGraphTarget) -> GraphDependencyReference {
@@ -535,7 +615,7 @@ public class ValueGraphTraverser: GraphTraversing {
     }
 
     func hostApplication(path: AbsolutePath, name: String) -> ValueGraphTarget? {
-        directTargetDependencies(path: path, name: name)
+        directLocalTargetDependencies(path: path, name: name)
             .first(where: { $0.target.product == .app })
     }
 
@@ -554,33 +634,41 @@ public class ValueGraphTraverser: GraphTraversing {
         case .cocoapods:
             return nil
         case let .framework(path, binaryPath, dsymPath, bcsymbolmapPaths, linking, architectures, isCarthage):
-            return .framework(path: path,
-                              binaryPath: binaryPath,
-                              isCarthage: isCarthage,
-                              dsymPath: dsymPath,
-                              bcsymbolmapPaths: bcsymbolmapPaths,
-                              linking: linking,
-                              architectures: architectures,
-                              product: (linking == .static) ? .staticFramework : .framework)
+            return .framework(
+                path: path,
+                binaryPath: binaryPath,
+                isCarthage: isCarthage,
+                dsymPath: dsymPath,
+                bcsymbolmapPaths: bcsymbolmapPaths,
+                linking: linking,
+                architectures: architectures,
+                product: (linking == .static) ? .staticFramework : .framework
+            )
         case let .library(path, _, linking, architectures, _):
-            return .library(path: path,
-                            linking: linking,
-                            architectures: architectures,
-                            product: (linking == .static) ? .staticLibrary : .dynamicLibrary)
+            return .library(
+                path: path,
+                linking: linking,
+                architectures: architectures,
+                product: (linking == .static) ? .staticLibrary : .dynamicLibrary
+            )
         case .packageProduct:
             return nil
         case let .sdk(_, path, status, source):
-            return .sdk(path: path,
-                        status: status,
-                        source: source)
+            return .sdk(
+                path: path,
+                status: status,
+                source: source
+            )
         case let .target(name, path):
             guard let target = self.target(path: path, name: name) else { return nil }
             return .product(target: target.target.name, productName: target.target.productNameWithExtension)
         case let .xcframework(path, infoPlist, primaryBinaryPath, _):
-            return .xcframework(path: path,
-                                infoPlist: infoPlist,
-                                primaryBinaryPath: primaryBinaryPath,
-                                binaryPath: primaryBinaryPath)
+            return .xcframework(
+                path: path,
+                infoPlist: infoPlist,
+                primaryBinaryPath: primaryBinaryPath,
+                binaryPath: primaryBinaryPath
+            )
         }
     }
 }

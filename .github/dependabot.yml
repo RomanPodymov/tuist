@@ -1,9 +1,9 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    directory: '/website'
+    directory: '/projects/website'
     schedule:
-      interval: weekly
+      interval: monthly
       time: '11:00'
     open-pull-requests-limit: 10
     reviewers:
@@ -12,9 +12,9 @@ updates:
       - dependencies
       - automerge
   - package-ecosystem: npm
-    directory: '/next'
+    directory: '/projects/next'
     schedule:
-      interval: weekly
+      interval: monthly
       time: '11:00'
     open-pull-requests-limit: 10
     reviewers:
@@ -25,7 +25,7 @@ updates:
   - package-ecosystem: bundler
     directory: '/'
     schedule:
-      interval: weekly
+      interval: monthly
       time: '11:00'
     open-pull-requests-limit: 10
     reviewers:
