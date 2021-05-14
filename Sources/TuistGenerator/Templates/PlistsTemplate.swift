@@ -1,6 +1,8 @@
 extension SynthesizedResourceInterfaceTemplates {
     static let plistsTemplate = """
     // swiftlint:disable all
+    // swift-format-ignore-file
+    // swiftformat:disable all
     // Generated using tuist — https://github.com/tuist/tuist
 
     {% if files %}
@@ -65,21 +67,17 @@ extension SynthesizedResourceInterfaceTemplates {
     {% endfilter %}{% endmacro %}
 
     // swiftlint:disable identifier_name line_length number_separator type_body_length
-    {{accessModifier}} enum {{param.name}} {
-      {% if files.count > 1 or param.forceFileNameEnum %}
-      {% for file in files %}
-      {{accessModifier}} enum {{file.name|swiftIdentifier:"pretty"|escapeReservedKeywords}} {
-        {% filter indent:2 %}{% call fileBlock file %}{% endfilter %}
-      }
-      {% endfor %}
-      {% else %}
-      {% call fileBlock files.first %}
-      {% endif %}
+    {% for file in files %}
+    {{accessModifier}} enum {{file.name|swiftIdentifier:"pretty"|escapeReservedKeywords}} {
+      {% filter indent:2 %}{% call fileBlock file %}{% endfilter %}
     }
+    {% endfor %}
     // swiftlint:enable identifier_name line_length number_separator type_body_length
     {% else %}
     // No files found
     {% endif %}
+    // swiftlint:enable all
+    // swiftformat:enable all
 
     """
 }

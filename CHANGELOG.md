@@ -4,6 +4,78 @@ Please, check out guidelines: https://keepachangelog.com/en/1.0.0/
 
 ## Next
 
+### Changed
+
+- Emit warning instead of error when provisioning profiles is expired. [#2919](https://github.com/tuist/tuist/pull/2919) by [@iteracticman](https://github.com/iteracticman)
+
+## 1.42.0 - Builders
+
+### Added
+
+- Add support for `testPlan` inizialization with an array of `Path`. [#2837](https://github.com/tuist/tuist/pull/2837) by [@cipolleshi](https://github.com/cipolleschi)
+- Add `tuist dependencies update` command. [#2819](https://github.com/tuist/tuist/pull/2819) by [@laxmorek](https://github.com/laxmorek)
+- Add `--build-output-path` option to `tuist build` [#2835](https://github.com/tuist/tuist/pull/2835) by [@Luis Padron](https://github.com/luispadron).
+
+### Changed
+
+- **Breaking** For some data types (plist, json, yaml and core data) resource synthesizers now group them and let `SwiftGen` output a single fine instead of one for each resource. [#2887](https://github.com/tuist/tuist/pull/2887) by [@fila95](https://github.com/fila95)
+- Warnings for targets with no source files are now suppressed if the target does contain a dependency or action. [#2838](https://github.com/tuist/tuist/pull/2838) by [@jsorge](https://github.com/jsorge)
+
+### Fixed
+
+- `.strings` Localization file synthesizers are now consistent and reproducible across multiple generations using the `developmentRegion` to choose the source one or defaulting to `en`. [#2887](https://github.com/tuist/tuist/pull/2887) by [@fila95](https://github.com/fila95)
+- Fix `tuist focus` not excluding targets from `codeCoverageTargets` of custom schemes by [@Luis Padron](https://github.com/luispadron).
+- Fix rubocop warnings [#2898](https://github.com/tuist/tuist/pull/2898) by [@fortmarek](https://github.com/fortmarek)
+- Add newline to end of generated resource accessor files. [#2895](https://github.com/tuist/tuist/pull/2895) by [@Jake Prickett](https://github.com/Jake-Prickett)
+
+## 1.41.0
+
+### Added
+
+- Add support for `runPostActionsOnFailure` for post build actions. [#2752](https://github.com/tuist/tuist/pull/2752) by [@FranzBusch](https://github.com/FranzBusch)
+- Make `ValueGraph` serializable. [#2811](https://github.com/tuist/tuist/pull/2811) by [@laxmorek](https://github.com/laxmorek)
+- Add support for configuration of cache directory [#2566](https://github.com/tuist/tuist/pull/2566) by [@adellibovi](https://github.com/adellibovi).
+- Add support for `runForInstallBuildsOnly` for build actions by [@StefanFessler](https://github.com/apps4everyone)
+
+### Changed
+
+- Improve performance of `tuist generate` by optimizing up md5 hash generation. [#2815](https://github.com/tuist/tuist/pull/2815) by [@adellibovi](https://github.com/adellibovi)
+- Speed up frameworks metadata reading using Mach-o parsing instead of `file`, `lipo` and `dwarfdump` external processes. [#2814](https://github.com/tuist/tuist/pull/2814) by [@adellibovi](https://github.com/adellibovi)
+
+### Fixed
+
+- `tuist generate` your projects without having to re-open them! 🧑‍💻 [#2828] by [@ferologics](https://github.com/ferologics)
+- Fix a bug for which when generating a `Resources` target from a `staticLibrary` or `staticFramework`, the parent's deployment target isn't passed to the new target. [#2830](https://github.com/tuist/tuist/pull/2830) by [@fila95](https://github.com/fila95)
+- Fix `.messagesExtension` default settings to include the appropriate `LD_RUNPATH_SEARCH_PATHS` [#2824](https://github.com/tuist/tuist/pull/2824) by [@kwridan](https://github.com/kwridan)
+- Fix the link to documented guidelines in pull request template [#2833](https://github.com/tuist/tuist/pull/2833) by [@mollyIV](https://github.com/mollyIV).
+
+## 1.40.0
+
+### Added
+
+- Add resource synthesizers [#2746](https://github.com/tuist/tuist/pull/2746) by [@fortmarek](https://github.com/fortmarek)
+- **WIP** Support for `SwiftPackageManager` dependencies in `Dependencies.swift` [#2394](https://github.com/tuist/tuist/pull/2394) by [@laxmorek](https://github.com/laxmorek).
+
+### Changed
+
+- Add missing disabling of swiftformat and swift-format [#2795](https://github.com/tuist/tuist/pull/2795) by [@fortmarek](https://github.com/fortmarek)
+- Add support for globbing in build phase input file and file lists as well as output and output file lists. [#2686](https://github.com/tuist/tuist/pull/2686) by [@FranzBusch](https://github.com/FranzBusch)
+- **breaking** Redesign `ProjectDescription.Dependencies` manifest model. [#2394](https://github.com/tuist/tuist/pull/2394) by [@laxmorek](https://github.com/laxmorek).
+
+### Fixed
+
+- Fixed missing `.resolveDependenciesWithSystemScm` config option in the `PackageDescription` portion of tuist [#2769](https://github.com/tuist/tuist/pull/2769) by [@freak4pc](https://github.com/freak4pc)
+- Fixed running `tuist dump` for projects with plugins [#2700](https://github.com/tuist/tuist/pull/2700) by [@danyf90](https://github.com/danyf90)
+- Fixed issue where associating potential test targets in a target's auto-generated scheme became more restrictive that previous versions. [#2797](https://github.com/tuist/tuist/pull/2797) by [@jakeatoms](https://github.com/jakeatoms)
+
+## 1.39.1
+
+### Fixed
+
+- Fixed vendor updates not restoring original file permissions [#2743](https://github.com/tuist/tuist/pull/2688) by [@davebcn87](https://github.com/davebcn87)
+
+## 1.39.0 - Innovators
+
 ### Added
 
 - Add support for disabling Swift Package locking to speed up project generation when using Swift Package Manager [#2693](https://github.com/tuist/tuist/pull/2693) by [@jsorge](https://github.com/jsorge).
@@ -31,6 +103,7 @@ Please, check out guidelines: https://keepachangelog.com/en/1.0.0/
 
 ### Fixed
 
+- Run all unit tests [#2739](https://github.com/tuist/tuist/pull/2739) by [@fortmarek](https://github.com/fortmarek)
 - Fix false positive duplicate bundle id lint warning [#2707](https://github.com/tuist/tuist/pull/2707) by [@kwridan](https://github.com/kwridan)
 - Failing Homebrew runs in M1 environments [#2711](https://github.com/tuist/tuist/pull/2711) by [@pepibumur](https://github.com/pepibumur)
 - Installation of Tuist when `/usr/local/bin` doesn't exist [#2710](https://github.com/tuist/tuist/pull/2710) by [@pepibumur](https://github.com/pepibumur)
