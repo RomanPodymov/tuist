@@ -3,7 +3,6 @@
   <a href="#contributors-"><img src="https://img.shields.io/badge/all_contributors-2-orange.svg?style=flat-square" alt="All contributors"></a>
   <img src="https://github.com/tuist/tuist/workflows/Tuist/badge.svg" alt="Tuist">
   <img src="https://img.shields.io/github/v/release/tuist/tuist?include_prereleases&style=flat-square" alt="Latest Version">
-  <a href="http://slack.tuist.io"><img src="http://slack.tuist.io/badge.svg" alt="Slack"></a>
   <a href="http://community.tuist.io"><img src="https://img.shields.io/badge/community-tuist-blue?style=flat-square" alt="Community"></a>
   <img src="https://img.shields.io/github/forks/tuist/tuist?style=flat-square" alt="GitHub forks">
   <img src="https://img.shields.io/github/stars/tuist/tuist?style=flat-square" alt="GitHub stars">
@@ -40,18 +39,18 @@ tuist generate # Generates Xcode project & workspace
 tuist build # Builds your project
 ```
 
-[Check out](https://tuist.io/docs) the project "Get Started" guide to learn more about Tuist and all its features.
+[Check out](https://docs.tuist.io) the project "Get Started" guide to learn more about Tuist and all its features.
 
 ## Repository structure
 
 The repository is a monorepo with multiple projects:
 
-- [Swift Package (CLI) 📦](/)
-- [Main Website 🌍](/website)
+- [Swift Package (CLI) 📦](/../..)
+- [Main Website 🌍](projects/website)
 
 ## Documentation 📝
 
-Do you want to know more about what Tuist can offer you? Or perhaps want to contribute to the project and you need a starting point? You can check out the [project documentation](https://tuist.io/docs/usage/get-started/).
+Do you want to know more about what Tuist can offer you? Or perhaps want to contribute to the project and you need a starting point? You can check out the [project documentation](https://docs.tuist.io/tutorial/get-started/).
 
 ## Supported by great companies
 
@@ -65,7 +64,7 @@ MacStadium supports this project by providing Mac mini hardware that we can use 
 
 ## Contribute 👩‍💻
 
-If you are interested in contributed to the project, our documentation has a section with resources for contributors. We recommend starting from [this page](https://tuist.io/docs/contribution/get-started/).
+If you are interested in contributed to the project, our documentation has a section with resources for contributors. We recommend starting from [this page](https://docs.tuist.io/contributors/get-started).
 
 ## Core Team ✨
 
@@ -140,6 +139,17 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/tiarnann"><img src="https://avatars.githubusercontent.com/u/10522081?v=4" width="100px;" alt=""/><br /><sub><b>Tíarnán McGrath</b></sub></a></td>
+    <td align="center"><a href="https://github.com/softmaxsg"><img src="https://avatars.githubusercontent.com/u/3723817?v=4" width="100px;" alt=""/><br /><sub><b>Vitaly Chupryk</b></sub></a></td>
+    <td align="center"><a href="https://github.com/rmnblm"><img src="https://avatars.githubusercontent.com/u/5942764?v=4" width="100px;" alt=""/><br /><sub><b>Roman Blum</b></sub></a></td>
+    <td align="center"><a href="http://nanotek.me"><img src="https://avatars.githubusercontent.com/u/7265334?v=4" width="100px;" alt=""/><br /><sub><b>Giovanni Filaferro</b></sub></a></td>
+    <td align="center"><a href="http://twitter.com/tovkal"><img src="https://avatars.githubusercontent.com/u/5960675?v=4" width="100px;" alt=""/><br /><sub><b>Andrés Pizá Bückmann</b></sub></a></td>
+    <td align="center"><a href="http://coutinho.dev"><img src="https://avatars.githubusercontent.com/u/17842860?v=4" width="100px;" alt=""/><br /><sub><b>Gabriel Coutinho</b></sub></a></td>
+    <td align="center"><a href="https://medium.com/@riccardocipolleschi"><img src="https://avatars.githubusercontent.com/u/11162307?v=4" width="100px;" alt=""/><br /><sub><b>Riccardo</b></sub></a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/bolismauro"><img src="https://avatars.githubusercontent.com/u/771999?v=4" width="100px;" alt=""/><br /><sub><b>Mauro Bolis</b></sub></a></td>
+    <td align="center"><a href="https://twitter.com/iteractive_man"><img src="https://avatars.githubusercontent.com/u/461805?v=4" width="100px;" alt=""/><br /><sub><b>Peter Weishapl</b></sub></a></td>
+    <td align="center"><a href="http://stackoverflow.com/users/1878594/swiftycruz"><img src="https://avatars.githubusercontent.com/u/2609775?v=4" width="100px;" alt=""/><br /><sub><b>Cruz</b></sub></a></td>
   </tr>
 </table>
 

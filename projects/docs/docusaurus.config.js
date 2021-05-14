@@ -1,4 +1,7 @@
 /** @type {import('@docusaurus/types').DocusaurusConfig} */
+const remarkEmoji = require('remark-emoji')
+const remarkExternalLinks = require('remark-external-links')
+
 module.exports = {
   title: 'Tuist Documentation',
   tagline: 'Documentation about how to use and contribute to the tool.',
@@ -10,9 +13,13 @@ module.exports = {
   organizationName: 'tuist',
   projectName: 'tuist',
   customFields: {
-    defaultDocsLandingPage: 'getting-started',
+    defaultDocsLandingPage: 'tutorial/get-started',
   },
   themeConfig: {
+    prism: {
+      additionalLanguages: ['swift', 'ruby'],
+      theme: require('prism-react-renderer/themes/dracula'),
+    },
     algolia: {
       apiKey: process.env.ALGOLIA_API_KEY || 'dev',
       indexName: process.env.ALGOLIA_INDEX_NAME || 'dev',
@@ -26,13 +33,6 @@ module.exports = {
         src: 'img/logo.svg',
       },
       items: [
-        {
-          to: '/docs/getting-started',
-          activeBasePath: 'docs',
-          label: 'Docs',
-          position: 'left',
-        },
-        { to: 'blog', label: 'Blog', position: 'left' },
         {
           href: 'https://github.com/tuist/tuist',
           label: 'GitHub',
@@ -48,7 +48,7 @@ module.exports = {
           items: [
             {
               label: 'Getting Started',
-              to: 'docs/',
+              to: '/',
             },
           ],
         },
@@ -83,28 +83,16 @@ module.exports = {
       copyright: `Copyright © ${new Date().getFullYear()} Tuist, Inc. Built with Docusaurus.`,
     },
   },
-  plugins: [
-    [
-      '@docusaurus/plugin-sitemap',
-      {
-        changefreq: 'weekly',
-        priority: 0.5,
-        trailingSlash: false,
-      },
-    ],
-  ],
+  plugins: [],
   presets: [
     [
       '@docusaurus/preset-classic',
       {
         docs: {
+          routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl: 'https://github.com/tuist/tuist/blob/main/projects/docs/',
-        },
-        blog: {
-          showReadingTime: true,
-          editUrl:
-            'https://github.com/tuist/tuist/blob/main/projects/docs/blog',
+          remarkPlugins: [remarkEmoji, remarkExternalLinks],
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
