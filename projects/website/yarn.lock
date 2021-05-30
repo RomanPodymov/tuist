@@ -8056,10 +8056,10 @@ gatsby-plugin-manifest@^3.5.0:
     semver "^7.3.5"
     sharp "^0.28.1"
 
-gatsby-plugin-mdx@^2.5.0:
-  version "2.5.0"
-  resolved "https://registry.yarnpkg.com/gatsby-plugin-mdx/-/gatsby-plugin-mdx-2.5.0.tgz#6ffe790f43731dbf1c70369826861936f1d18d12"
-  integrity sha512-q4BrUdMB/OCpLcOxGqbMBl7RhKWc5F5dKThGETaFtROzDLW4Uiw4Mww8tY6oGAgQfyWNl9sh+tadiiM9pbJJXg==
+gatsby-plugin-mdx@^2.5.1:
+  version "2.5.1"
+  resolved "https://registry.yarnpkg.com/gatsby-plugin-mdx/-/gatsby-plugin-mdx-2.5.1.tgz#3eb5742e04045fe1b695acc9dca5450226c74914"
+  integrity sha512-Q9DJsR6sU0h77Kl4EFAk7jXq5ciTcaFyuTU3+JHE82yP+nzCJs28T41drOrwyxFmmaE+ONsQSMHpbQSc0jifcQ==
   dependencies:
     "@babel/core" "^7.12.3"
     "@babel/generator" "^7.12.5"
@@ -8162,10 +8162,10 @@ gatsby-plugin-react-svg@^3.0.1:
   dependencies:
     svg-react-loader "^0.4.4"
 
-gatsby-plugin-robots-txt@^1.5.6:
-  version "1.5.6"
-  resolved "https://registry.yarnpkg.com/gatsby-plugin-robots-txt/-/gatsby-plugin-robots-txt-1.5.6.tgz#5a0d7ac47240ad538d988615a8a8ec648a6b641f"
-  integrity sha512-AxHbrw8WaYOxyu++LPIratjlNgBuu2qb5j3F+Ht+ooD/azutL+BAPbuYexz9CMPqTy1h/kiBxZsojbGLbWpvgA==
+gatsby-plugin-robots-txt@^1.6.2:
+  version "1.6.2"
+  resolved "https://registry.yarnpkg.com/gatsby-plugin-robots-txt/-/gatsby-plugin-robots-txt-1.6.2.tgz#b120b0a452f77e5ba2724e99425b90504dbc44b7"
+  integrity sha512-TqLCnxldq7goBMrvtzTDWQAcjPUr/CpOUJe7K0NyLfDmP/xb+Ius03SvAdJRm33fyJr+YNjknSspPK7q9OvQYA==
   dependencies:
     "@babel/runtime" "^7.11.2"
     generate-robotstxt "^8.0.3"
@@ -8207,10 +8207,10 @@ gatsby-plugin-sitemap@^2.12.0:
     pify "^3.0.0"
     sitemap "^1.13.0"
 
-gatsby-plugin-theme-ui@^0.3.5:
-  version "0.3.5"
-  resolved "https://registry.yarnpkg.com/gatsby-plugin-theme-ui/-/gatsby-plugin-theme-ui-0.3.5.tgz#3fc86e5e1ede4e628ebf100f724f6e9000cd5148"
-  integrity sha512-IPiBtxY8b63XxxKjUQFg4GWvP1r7AvJ3ub7sc3nP0bSOAyGhMV3ijI7gpSF8phtHcB8oLe5Hf6+olpT22ft7Fg==
+gatsby-plugin-theme-ui@^0.8.4:
+  version "0.8.4"
+  resolved "https://registry.yarnpkg.com/gatsby-plugin-theme-ui/-/gatsby-plugin-theme-ui-0.8.4.tgz#5763a2fbf4340b8f7cb06cc2591f6fe9a2fb8d13"
+  integrity sha512-rvCpanIlr8R18QhhNtyrv2SYgi7fo0gvXlzGIK6Hwa9QeADxoV0BZC1cz+ei7rJOpSE1/E2fZKHKU98WLmub5w==
 
 gatsby-plugin-typescript@^2.12.1:
   version "2.12.1"
