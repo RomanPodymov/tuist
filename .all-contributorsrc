@@ -433,6 +433,33 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "wojciech-kulik",
+      "name": "Wojciech Kulik",
+      "avatar_url": "https://avatars.githubusercontent.com/u/3128467?v=4",
+      "profile": "https://wojciechkulik.pl",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "iainsmith",
+      "name": "Iain Smith",
+      "avatar_url": "https://avatars.githubusercontent.com/u/993745?v=4",
+      "profile": "https://github.com/iainsmith",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "havebeenfitz",
+      "name": "Max Kraev",
+      "avatar_url": "https://avatars.githubusercontent.com/u/31866271?v=4",
+      "profile": "https://github.com/havebeenfitz",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,

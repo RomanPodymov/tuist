@@ -13,6 +13,10 @@ on:
       - projects/fixturegen/**
       - projects/tuistbench/**
 
+concurrency:
+  group: ${{ github.head_ref }}
+  cancel-in-progress: true
+
 env:
   RUBY_VERSION: '3.0.1'
 
@@ -22,7 +26,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        xcode: ['12', '12.4']
+        xcode: ['12.2', '12.4']
     steps:
       - uses: actions/checkout@v1
       - name: Select Xcode ${{ matrix.xcode }}
@@ -47,7 +51,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        xcode: ['12', '12.4']
+        xcode: ['12.2', '12.4']
     steps:
       - uses: actions/checkout@v1
       - name: Select Xcode

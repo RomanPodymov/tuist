@@ -11,6 +11,7 @@ on:
       - Package.resolved
       - Sources/**
       - Project.swift
+      - projects/fourier/**
 
 env:
   RUBY_VERSION: '3.0.1'
@@ -22,7 +23,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        xcode: ['12']
+        xcode: ['12.2']
     steps:
       - uses: actions/checkout@v1
       - name: Select Xcode
