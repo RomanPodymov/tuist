@@ -19,6 +19,7 @@ final class CacheMapperTests: TuistUnitTestCase {
     var config: Config!
 
     override func setUp() {
+        super.setUp()
         cache = MockCacheStorage()
         cacheGraphContentHasher = MockCacheGraphContentHasher()
         cacheGraphMutator = MockCacheGraphMutator()
@@ -33,7 +34,6 @@ final class CacheMapperTests: TuistUnitTestCase {
             cacheGraphMutator: cacheGraphMutator,
             queue: DispatchQueue.main
         )
-        super.setUp()
     }
 
     override func tearDown() {
@@ -45,26 +45,58 @@ final class CacheMapperTests: TuistUnitTestCase {
         super.tearDown()
     }
 
+    func test_map_when_a_source_is_not_available() throws {
+        // Given
+        subject = CacheMapper(
+            config: config,
+            cache: cache,
+            cacheGraphContentHasher: cacheGraphContentHasher,
+            sources: ["B", "C", "D"],
+            cacheProfile: .test(),
+            cacheOutputType: .framework,
+            cacheGraphMutator: cacheGraphMutator,
+            queue: DispatchQueue.main
+        )
+        let projectPath = try temporaryPath()
+        let graph = Graph.test(
+            projects: [
+                projectPath: .test(),
+            ],
+            targets: [
+                projectPath: [
+                    "A": .test(name: "A"),
+                    "B": .test(name: "B"),
+                ],
+            ]
+        )
+
+        // When / Then
+        XCTAssertThrowsSpecific(
+            try subject.map(graph: graph),
+            CacheMapperError.missingTargets(missingTargets: ["C", "D"], availableTargets: ["A", "B"])
+        )
+    }
+
     func test_map_when_all_binaries_are_fetched_successfully() throws {
         let path = try temporaryPath()
         let project = Project.test(path: path)
 
         // Given
         let cFramework = Target.test(name: "C", platform: .iOS, product: .framework)
-        let cGraphTarget = ValueGraphTarget.test(path: path, target: cFramework)
+        let cGraphTarget = GraphTarget.test(path: path, target: cFramework)
         let cXCFrameworkPath = path.appending(component: "C.xcframework")
         let cHash = "C"
 
         let bFramework = Target.test(name: "B", platform: .iOS, product: .framework)
-        let bGraphTarget = ValueGraphTarget.test(path: path, target: bFramework)
+        let bGraphTarget = GraphTarget.test(path: path, target: bFramework)
         let bHash = "B"
         let bXCFrameworkPath = path.appending(component: "B.xcframework")
 
         let app = Target.test(name: "App", platform: .iOS, product: .app)
-        let appGraphTarget = ValueGraphTarget.test(path: path, target: app)
+        let appGraphTarget = GraphTarget.test(path: path, target: app)
         let appHash = "App"
 
-        let inputGraph = ValueGraph.test(
+        let inputGraph = Graph.test(
             name: "input",
             projects: [path: project],
             dependencies: [
@@ -76,7 +108,7 @@ final class CacheMapperTests: TuistUnitTestCase {
                 ],
             ]
         )
-        let outputGraph = ValueGraph.test(
+        let outputGraph = Graph.test(
             name: "output",
             projects: inputGraph.projects,
             dependencies: inputGraph.dependencies
@@ -120,19 +152,19 @@ final class CacheMapperTests: TuistUnitTestCase {
 
         // Given
         let cFramework = Target.test(name: "C", platform: .iOS, product: .framework)
-        let cGraphTarget = ValueGraphTarget.test(path: path, target: cFramework)
+        let cGraphTarget = GraphTarget.test(path: path, target: cFramework)
         let cHash = "C"
 
         let bFramework = Target.test(name: "B", platform: .iOS, product: .framework)
-        let bGraphTarget = ValueGraphTarget.test(path: path, target: bFramework)
+        let bGraphTarget = GraphTarget.test(path: path, target: bFramework)
         let bHash = "B"
         let bXCFrameworkPath = path.appending(component: "B.xcframework")
 
         let app = Target.test(name: "App", platform: .iOS, product: .app)
-        let appGraphTarget = ValueGraphTarget.test(path: path, target: app)
+        let appGraphTarget = GraphTarget.test(path: path, target: app)
         let appHash = "App"
 
-        let inputGraph = ValueGraph.test(
+        let inputGraph = Graph.test(
             name: "input",
             projects: [path: project],
             dependencies: [
@@ -144,7 +176,7 @@ final class CacheMapperTests: TuistUnitTestCase {
                 ],
             ]
         )
-        let outputGraph = ValueGraph.test(
+        let outputGraph = Graph.test(
             name: "output",
             projects: inputGraph.projects,
             dependencies: inputGraph.dependencies
@@ -194,15 +226,15 @@ final class CacheMapperTests: TuistUnitTestCase {
         )
 
         let cFramework = Target.test(name: "C", platform: .iOS, product: .framework)
-        let cGraphTarget = ValueGraphTarget.test(path: path, target: cFramework)
+        let cGraphTarget = GraphTarget.test(path: path, target: cFramework)
 
         let bFramework = Target.test(name: "B", platform: .iOS, product: .framework)
-        let bGraphTarget = ValueGraphTarget.test(path: path, target: bFramework)
+        let bGraphTarget = GraphTarget.test(path: path, target: bFramework)
 
         let app = Target.test(name: "App", platform: .iOS, product: .app)
-        let appGraphTarget = ValueGraphTarget.test(path: path, target: app)
+        let appGraphTarget = GraphTarget.test(path: path, target: app)
 
-        let inputGraph = ValueGraph.test(
+        let inputGraph = Graph.test(
             name: "input",
             projects: [path: project],
             dependencies: [
@@ -214,7 +246,7 @@ final class CacheMapperTests: TuistUnitTestCase {
                 ],
             ]
         )
-        let outputGraph = ValueGraph.test(
+        let outputGraph = Graph.test(
             name: "output",
             projects: inputGraph.projects,
             dependencies: inputGraph.dependencies

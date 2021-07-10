@@ -6,7 +6,25 @@ import TuistCore
 import TuistGraph
 import TuistSupport
 
-public class CacheMapper: GraphMapping {
+enum CacheMapperError: FatalError, Equatable {
+    case missingTargets(missingTargets: [String], availableTargets: [String])
+
+    var description: String {
+        switch self {
+        case let .missingTargets(missingTargets: missingTargets, availableTargets: availableTargets):
+            return "Targets \(missingTargets.joined(separator: ", ")) cannot be found. Available targets are \(availableTargets.joined(separator: ", "))"
+        }
+    }
+
+    var type: ErrorType {
+        switch self {
+        case .missingTargets:
+            return .abort
+        }
+    }
+}
+
+public final class CacheMapper: GraphMapping {
     // MARK: - Attributes
 
     /// Cache.
@@ -72,7 +90,20 @@ public class CacheMapper: GraphMapping {
 
     // MARK: - GraphMapping
 
-    public func map(graph: ValueGraph) throws -> (ValueGraph, [SideEffectDescriptor]) {
+    public func map(graph: Graph) throws -> (Graph, [SideEffectDescriptor]) {
+        let graphTraverser = GraphTraverser(graph: graph)
+        let availableTargets = Set(
+            graphTraverser.allTargets().map(\.target.name)
+        )
+        let missingTargets = sources.subtracting(availableTargets)
+        guard
+            missingTargets.isEmpty
+        else {
+            throw CacheMapperError.missingTargets(
+                missingTargets: missingTargets.sorted(),
+                availableTargets: availableTargets.sorted()
+            )
+        }
         let single = hashes(graph: graph).flatMap { self.map(graph: graph, hashes: $0, sources: self.sources) }
         return try (single.toBlocking().single(), [])
     }
@@ -84,7 +115,7 @@ public class CacheMapper: GraphMapping {
         return DispatchQueue(label: "io.tuist.generator-cache-mapper.\(qos)", qos: qos, attributes: [], target: nil)
     }
 
-    private func hashes(graph: ValueGraph) -> Single<[ValueGraphTarget: String]> {
+    private func hashes(graph: Graph) -> Single<[GraphTarget: String]> {
         Single.create { (observer) -> Disposable in
             do {
                 let hashes = try self.cacheGraphContentHasher.contentHashes(
@@ -101,7 +132,7 @@ public class CacheMapper: GraphMapping {
         .subscribeOn(ConcurrentDispatchQueueScheduler(queue: queue))
     }
 
-    private func map(graph: ValueGraph, hashes: [ValueGraphTarget: String], sources: Set<String>) -> Single<ValueGraph> {
+    private func map(graph: Graph, hashes: [GraphTarget: String], sources: Set<String>) -> Single<Graph> {
         fetch(hashes: hashes).map { xcframeworkPaths in
             try self.cacheGraphMutator.map(
                 graph: graph,
@@ -111,16 +142,16 @@ public class CacheMapper: GraphMapping {
         }
     }
 
-    private func fetch(hashes: [ValueGraphTarget: String]) -> Single<[ValueGraphTarget: AbsolutePath]> {
+    private func fetch(hashes: [GraphTarget: String]) -> Single<[GraphTarget: AbsolutePath]> {
         Single.zip(hashes.map { target, hash in
             self.cache.exists(hash: hash)
-                .flatMap { (exists) -> Single<(target: ValueGraphTarget, path: AbsolutePath?)> in
+                .flatMap { (exists) -> Single<(target: GraphTarget, path: AbsolutePath?)> in
                     guard exists else { return Single.just((target: target, path: nil)) }
                     return self.cache.fetch(hash: hash).map { (target: target, path: $0) }
                 }
         })
             .map { result in
-                result.reduce(into: [ValueGraphTarget: AbsolutePath]()) { acc, next in
+                result.reduce(into: [GraphTarget: AbsolutePath]()) { acc, next in
                     guard let path = next.path else { return }
                     acc[next.target] = path
                 }
